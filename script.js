@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startTimer(display) {
         clearInterval(timerInterval);
+        seconds = 0; // Reset seconds when starting
         timerInterval = setInterval(() => {
             seconds++;
             const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
@@ -191,6 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateKeyGame() {
         if (!gameActive) return;
+
+        // Start timer on first movement or interaction
         if (seconds === 0 && (keysPressed['ArrowUp'] || keysPressed['ArrowDown'] || keysPressed['ArrowLeft'] || keysPressed['ArrowRight'])) {
             startTimer(keyTimerDisplay);
         }
@@ -213,8 +216,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const dy = m.y - keyPlayer.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < m.radius + keyPlayer.radius) {
-                alert("נתפסת על ידי הטיל! נסה שוב.");
-                initKeyGame();
+                gameActive = false;
+                clearInterval(timerInterval);
+                alert("אופס, נתקעת בממד.. תקרא לגיא (דירה 17)");
+                startModal.classList.add('show');
                 return;
             }
         });
@@ -242,35 +247,32 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, keyCanvas.width, keyCanvas.height);
 
+        // Draw Stars/Background effect
+        ctx.fillStyle = '#222';
+        for (let i = 0; i < 10; i++) ctx.fillRect(i * 40, (i * 30) % 400, 2, 2);
+
         // Draw Player (Small House/Square)
-        ctx.fillStyle = '#007bff';
-        ctx.beginPath();
-        ctx.arc(keyPlayer.x, keyPlayer.y, keyPlayer.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.font = '12px Arial';
+        ctx.font = '30px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('🏠', keyPlayer.x, keyPlayer.y + 5);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🏃', keyPlayer.x, keyPlayer.y);
 
         // Draw Keys
-        ctx.fillStyle = '#ffc107';
         keys.forEach(k => {
-            ctx.font = '20px Arial';
-            ctx.fillText('🔑', k.x, k.y + 7);
+            ctx.font = '24px Arial';
+            ctx.fillText('🔑', k.x, k.y);
         });
 
-        // Draw Missiles
+        // Draw Missiles (Tילים חמודים)
         missiles.forEach(m => {
-            ctx.fillStyle = '#ff4d4d';
-            ctx.beginPath();
-            ctx.moveTo(m.x, m.y - m.radius);
-            ctx.lineTo(m.x - m.radius, m.y + m.radius);
-            ctx.lineTo(m.x + m.radius, m.y + m.radius);
-            ctx.fill();
-            ctx.fillStyle = '#fff';
-            ctx.font = '10px Arial';
-            ctx.fillText('🚀', m.x, m.y + 5);
+            ctx.font = '28px Arial';
+            ctx.fillText('🚀', m.x, m.y);
+
+            // Subtle glow for missiles
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "red";
         });
+        ctx.shadowBlur = 0; // reset
     }
 
     // --- End Game Logic ---
