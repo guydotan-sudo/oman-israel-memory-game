@@ -4,7 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const keyGameView = document.getElementById('key-game-view');
     const startModal = document.getElementById('start-modal');
     const winModal = document.getElementById('win-modal');
+    const winMessage = document.getElementById('win-message');
+    const funnyCommentDisplay = document.getElementById('funny-comment');
     const gameSubtitle = document.getElementById('game-subtitle');
+    const leaderboardTitle = document.querySelector('.leaderboard-section h2');
 
     // Modal Inputs
     const initialNameInput = document.getElementById('initial-name');
@@ -286,9 +289,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function endCurrentGame(type) {
         gameActive = false;
+        timerRunning = false;
         clearInterval(timerInterval);
+
         const finalTimeStr = (type === 'memory' ? timerDisplay : keyTimerDisplay).textContent;
-        const funnyCommentDisplay = document.getElementById('funny-comment');
 
         let msg = `כל הכבוד ${currentPlayer.name} מדירה ${currentPlayer.apt}! `;
         let comment = "";
@@ -301,11 +305,13 @@ document.addEventListener('DOMContentLoaded', () => {
             comment = "כל הכבוד גם אתם למדתם לשמור על מפתח בממד!";
         }
 
-        document.getElementById('win-message').textContent = msg;
+        winMessage.textContent = msg;
         funnyCommentDisplay.textContent = comment;
 
-        saveScore(currentPlayer.name, currentPlayer.apt, finalTimeStr, seconds, type);
         winModal.classList.add('show');
+
+        // Save score and update leaderboard
+        saveScore(currentPlayer.name, currentPlayer.apt, finalTimeStr, seconds, type);
     }
 
     // --- Leaderboard API ---
@@ -323,14 +329,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function updateLeaderboard(gameType) {
         try {
+            // Update title to show which game we are looking at
+            const title = gameType === 'memory' ? 'משחק הזיכרון' : 'מצא את המפתח';
+            leaderboardTitle.textContent = `טבלת שיאים - ${title}`;
+
             const res = await fetch(`/api/scores?gameType=${gameType}`);
+            if (!res.ok) throw new Error('Failed to fetch scores');
             const scores = await res.json();
+
             const leaderboardBody = document.getElementById('leaderboard-body');
             leaderboardBody.innerHTML = '';
+
+            if (scores.length === 0) {
+                leaderboardBody.innerHTML = '<tr><td colspan="3">מחכה לשיא הראשון...</td></tr>';
+                return;
+            }
+
             scores.forEach((s, i) => {
-                leaderboardBody.innerHTML += `<tr><td>${i + 1}</td><td>${s.name} (דירה ${s.apt})</td><td>${s.timeStr}</td></tr>`;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${i + 1}</td>
+                    <td>${s.name} (דירה ${s.apt})</td>
+                    <td>${s.timeStr}</td>
+                `;
+                leaderboardBody.appendChild(row);
             });
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error('Leaderboard error:', e);
+        }
     }
 
     // --- Event Listeners ---
