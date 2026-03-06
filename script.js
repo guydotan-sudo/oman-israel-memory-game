@@ -15,24 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentPlayer = { name: '', apt: '' };
 
-    // --- Firebase Configuration ---
-    const firebaseConfig = {
-        apiKey: "AIzaSyBfNHDDt6mDoaqR3yFROmAE-R-lYHNAnC8",
-        authDomain: "uman-e8cdc.firebaseapp.com",
-        databaseURL: "https://uman-e8cdc-default-rtdb.firebaseio.com",
-        projectId: "uman-e8cdc",
-        storageBucket: "uman-e8cdc.firebasestorage.app",
-        messagingSenderId: "49675109929",
-        appId: "1:49675109929:web:b29abda8224f5c444ebe38"
-    };
-
-    // Initialize Firebase if config is provided
-    let database = null;
-    if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-        firebase.initializeApp(firebaseConfig);
-        database = firebase.database();
-    }
-
     let cards = [];
     let flippedCards = [];
     let matchedPairs = 0;
@@ -247,48 +229,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Leaderboard Logic (Shared via Firebase)
-    function saveScore(name, apt, timeStr, timeSeconds) {
-        const entryName = `${name} (דירה ${apt})`;
-
-        // Save locally for backup
-        let localLeaderboard = JSON.parse(localStorage.getItem('oman_israel_leaderboard') || '[]');
-        localLeaderboard.push({ name: entryName, timeStr, timeSeconds });
-        localLeaderboard.sort((a, b) => a.timeSeconds - b.timeSeconds);
-        localStorage.setItem('oman_israel_leaderboard', JSON.stringify(localLeaderboard.slice(0, 5)));
-
-        // Save to Firebase (Shared)
-        if (database) {
-            const scoresRef = database.ref('scores');
-            scoresRef.push({
-                name: name,
-                apt: apt,
-                displayName: entryName,
-                timeStr: timeStr,
-                timeSeconds: timeSeconds,
-                timestamp: Date.now()
+    // Leaderboard Logic (Shared via Vercel KV)
+    async function saveScore(name, apt, timeStr, timeSeconds) {
+        try {
+            await fetch('/api/scores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, apt, timeStr, timeSeconds })
             });
+            updateLeaderboard();
+        } catch (error) {
+            console.error('Error saving score:', error);
+            // Fallback to local storage if API fails
+            let localLeaderboard = JSON.parse(localStorage.getItem('oman_israel_leaderboard') || '[]');
+            localLeaderboard.push({ name: `${name} (דירה ${apt})`, timeStr, timeSeconds });
+            localLeaderboard.sort((a, b) => a.timeSeconds - b.timeSeconds);
+            localStorage.setItem('oman_israel_leaderboard', JSON.stringify(localLeaderboard.slice(0, 5)));
+            updateLeaderboard();
         }
     }
 
-    function updateLeaderboard() {
-        if (!database) {
-            displayLeaderboard(JSON.parse(localStorage.getItem('oman_israel_leaderboard') || '[]'));
-            return;
-        }
+    async function updateLeaderboard() {
+        try {
+            const response = await fetch('/api/scores');
+            if (!response.ok) throw new Error('API Error');
+            const scores = await response.json();
 
-        const scoresRef = database.ref('scores');
-        scoresRef.orderByChild('timeSeconds').limitToFirst(10).on('value', (snapshot) => {
-            const scores = [];
-            snapshot.forEach((childSnapshot) => {
-                const data = childSnapshot.val();
-                scores.push({
-                    name: data.displayName || `${data.name} (דירה ${data.apt})`,
-                    timeStr: data.timeStr
-                });
-            });
-            displayLeaderboard(scores);
-        });
+            const formattedScores = scores.map(s => ({
+                name: `${s.name} (דירה ${s.apt})`,
+                timeStr: s.timeStr
+            }));
+
+            displayLeaderboard(formattedScores);
+        } catch (error) {
+            console.error('Error fetching scores:', error);
+            // fallback to local
+            const local = JSON.parse(localStorage.getItem('oman_israel_leaderboard') || '[]');
+            displayLeaderboard(local);
+        }
     }
 
     function displayLeaderboard(leaderboard) {
