@@ -6,7 +6,7 @@ export default async function handler(request, response) {
         const kvKey = `oman_scores_${gameType}`;
 
         if (request.method === 'GET') {
-            const scores = await kv.zrange(kvKey, 0, 9, { withScores: true });
+            const scores = await kv.zrange(kvKey, 0, 99, { withScores: true });
 
             const formattedScores = [];
             for (let i = 0; i < scores.length; i += 2) {
