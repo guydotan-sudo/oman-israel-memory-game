@@ -25,7 +25,15 @@ export default async function handler(request, response) {
         if (request.method === 'POST') {
             const { name, apt, timeStr, timeSeconds, game = 'memory' } = request.body;
             const targetKey = `oman_scores_${game}`;
-            const scoreData = JSON.stringify({ name, apt, timeStr });
+
+            // אנחנו מוסיפים מזהה ייחודי (זמן + מספר רנדומלי) כדי שגם אם אותו משתמש שיחק פעמיים, 
+            // זה יירשם כשתי תוצאות שונות ב-Redis (שבו הערך חייב להיות ייחודי)
+            const scoreData = JSON.stringify({
+                name,
+                apt,
+                timeStr,
+                uid: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            });
 
             await kv.zadd(targetKey, { score: timeSeconds, member: scoreData });
 
