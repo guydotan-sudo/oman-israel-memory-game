@@ -17,14 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Firebase Configuration ---
     const firebaseConfig = {
-        apiKey: "AIzaSyBn3LCqsd9TUmF917SavpiskyDyN0g4Yk0",
-        authDomain: "uman-israel.firebaseapp.com",
-        databaseURL: "https://uman-israel-default-rtdb.firebaseio.com",
-        projectId: "uman-israel",
-        storageBucket: "uman-israel.firebasestorage.app",
-        messagingSenderId: "1008900380559",
-        appId: "1:1008900380559:web:af2e9e3d0c173cd76a1dfa",
-        measurementId: "G-DWFE1ZES8Y"
+        apiKey: "AIzaSyBfNHDDt6mDoaqR3yFROmAE-R-lYHNAnC8",
+        authDomain: "uman-e8cdc.firebaseapp.com",
+        databaseURL: "https://uman-e8cdc-default-rtdb.firebaseio.com",
+        projectId: "uman-e8cdc",
+        storageBucket: "uman-e8cdc.firebasestorage.app",
+        messagingSenderId: "49675109929",
+        appId: "1:49675109929:web:b29abda8224f5c444ebe38"
     };
 
     // Initialize Firebase if config is provided
