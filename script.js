@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPlayer = { name: '', apt: '' };
     let selectedGame = 'memory';
     let gameActive = false;
+    let timerRunning = false;
     let timerInterval;
     let seconds = 0;
 
@@ -41,8 +42,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startTimer(display) {
+        if (timerRunning) return;
+        timerRunning = true;
         clearInterval(timerInterval);
-        seconds = 0; // Reset seconds when starting
+        seconds = 0;
         timerInterval = setInterval(() => {
             seconds++;
             const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
@@ -67,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initMemoryGame() {
         gameActive = true;
+        timerRunning = false;
         gameGrid.innerHTML = '';
         flippedCards = [];
         matchedPairs = 0;
@@ -151,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initKeyGame() {
         gameActive = true;
+        timerRunning = false;
         keysCollected = 0;
         keyCounterDisplay.textContent = `0/${TOTAL_KEYS}`;
         resetTimer();
@@ -194,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!gameActive) return;
 
         // Start timer on first movement or interaction
-        if (seconds === 0 && (keysPressed['ArrowUp'] || keysPressed['ArrowDown'] || keysPressed['ArrowLeft'] || keysPressed['ArrowRight'])) {
+        if (!timerRunning && (keysPressed['ArrowUp'] || keysPressed['ArrowDown'] || keysPressed['ArrowLeft'] || keysPressed['ArrowRight'])) {
             startTimer(keyTimerDisplay);
         }
 
@@ -225,19 +230,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Check Key Collection
-        keys.forEach((k, idx) => {
+        for (let i = keys.length - 1; i >= 0; i--) {
+            const k = keys[i];
             const dx = k.x - keyPlayer.x;
             const dy = k.y - keyPlayer.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < k.radius + keyPlayer.radius) {
-                keys.splice(idx, 1);
+                keys.splice(i, 1);
                 keysCollected++;
                 keyCounterDisplay.textContent = `${keysCollected}/${TOTAL_KEYS}`;
                 if (keysCollected === TOTAL_KEYS) {
                     endCurrentGame('key');
+                    return; // Stop current frame
                 }
             }
-        });
+        }
 
         drawKeyGame();
         keyGameLoop = requestAnimationFrame(updateKeyGame);
