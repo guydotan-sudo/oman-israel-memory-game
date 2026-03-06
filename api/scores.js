@@ -2,11 +2,12 @@ import { kv } from '@vercel/kv';
 
 export default async function handler(request, response) {
     try {
-        if (request.method === 'GET') {
-            // שליפת 10 השיאים הכי טובים
-            const scores = await kv.zrange('oman_scores', 0, 9, { withScores: true });
+        const { gameType = 'memory' } = request.query;
+        const kvKey = `oman_scores_${gameType}`;
 
-            // המרת המבנה שחוזר מ-Redis למבנה שנוח לנו ב-JS
+        if (request.method === 'GET') {
+            const scores = await kv.zrange(kvKey, 0, 9, { withScores: true });
+
             const formattedScores = [];
             for (let i = 0; i < scores.length; i += 2) {
                 const data = JSON.parse(scores[i]);
@@ -22,12 +23,11 @@ export default async function handler(request, response) {
         }
 
         if (request.method === 'POST') {
-            const { name, apt, timeStr, timeSeconds } = request.body;
-
+            const { name, apt, timeStr, timeSeconds, game = 'memory' } = request.body;
+            const targetKey = `oman_scores_${game}`;
             const scoreData = JSON.stringify({ name, apt, timeStr });
 
-            // שמירה ב-Redis (ZADD שומר לפי ה-score שזה זמן המשחק בשניות)
-            await kv.zadd('oman_scores', { score: timeSeconds, member: scoreData });
+            await kv.zadd(targetKey, { score: timeSeconds, member: scoreData });
 
             return response.status(200).json({ message: 'Score saved!' });
         }

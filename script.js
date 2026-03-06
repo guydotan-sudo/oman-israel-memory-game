@@ -1,226 +1,379 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Elements ---
+    const memoryGameView = document.getElementById('memory-game-view');
+    const keyGameView = document.getElementById('key-game-view');
+    const startModal = document.getElementById('start-modal');
+    const winModal = document.getElementById('win-modal');
+    const gameSubtitle = document.getElementById('game-subtitle');
+
+    // Modal Inputs
+    const initialNameInput = document.getElementById('initial-name');
+    const initialAptInput = document.getElementById('initial-apt');
+    const startGameBtn = document.getElementById('start-game-btn');
+    const gameChoiceBtns = document.querySelectorAll('.game-choice-btn');
+
+    // Memory Game Elements
     const gameGrid = document.getElementById('game-grid');
     const timerDisplay = document.getElementById('timer');
     const moveCounterDisplay = document.getElementById('move-counter');
     const restartBtn = document.getElementById('restart-btn');
-    const winModal = document.getElementById('win-modal');
-    const winMessage = document.getElementById('win-message');
-    const funnyCommentDisplay = document.getElementById('funny-comment');
-    const startModal = document.getElementById('start-modal');
-    const startGameBtn = document.getElementById('start-game-btn');
-    const initialNameInput = document.getElementById('initial-name');
-    const initialAptInput = document.getElementById('initial-apt');
-    const closeModalBtn = document.getElementById('close-modal-btn');
-    const leaderboardBody = document.getElementById('leaderboard-body');
 
+    // Key Game Elements
+    const keyTimerDisplay = document.getElementById('key-timer');
+    const keyCounterDisplay = document.getElementById('key-counter');
+    const keyRestartBtn = document.getElementById('key-restart-btn');
+    const keyCanvas = document.getElementById('key-game-canvas');
+    const ctx = keyCanvas.getContext('2d');
+
+    // Global State
     let currentPlayer = { name: '', apt: '' };
+    let selectedGame = 'memory';
+    let gameActive = false;
+    let timerInterval;
+    let seconds = 0;
 
+    // --- General Logic ---
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        seconds = 0;
+        updateTimerDisplay();
+    }
+
+    function startTimer(display) {
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            seconds++;
+            const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+            const ss = String(seconds % 60).padStart(2, '0');
+            display.textContent = `${mm}:${ss}`;
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const ss = String(seconds % 60).padStart(2, '0');
+        timerDisplay.textContent = `${mm}:${ss}`;
+        keyTimerDisplay.textContent = `${mm}:${ss}`;
+    }
+
+    // --- Memory Game Logic ---
     let cards = [];
     let flippedCards = [];
     let matchedPairs = 0;
     let moves = 0;
-    let timerInterval;
-    let seconds = 0;
-    let isGameStarted = false;
-    let canFlip = true;
+    const residentImages = Array.from({ length: 18 }, (_, i) => `assets/residents/${i + 1}.jpg`);
 
-    // List of resident images (we'll update this automatically later or hardcode for now)
-    const residentImages = [
-        'assets/residents/1.jpg',
-        'assets/residents/2.jpg',
-        'assets/residents/3.jpg',
-        'assets/residents/4.jpg',
-        'assets/residents/5.jpg',
-        'assets/residents/6.jpg',
-        'assets/residents/7.jpg',
-        'assets/residents/8.jpg',
-        'assets/residents/9.jpg',
-        'assets/residents/10.jpg',
-        'assets/residents/11.jpg',
-        'assets/residents/12.jpg',
-        'assets/residents/13.jpg',
-        'assets/residents/14.jpg',
-        'assets/residents/15.jpg',
-        'assets/residents/16.jpg',
-        'assets/residents/17.jpg',
-        'assets/residents/18.jpg'
-    ];
-
-    let totalPairs = residentImages.length;
-
-    function initGame() {
-        // Reset variables
+    function initMemoryGame() {
+        gameActive = true;
         gameGrid.innerHTML = '';
         flippedCards = [];
         matchedPairs = 0;
         moves = 0;
-        seconds = 0;
-        isGameStarted = false;
-        canFlip = true;
         moveCounterDisplay.textContent = '0';
-        timerDisplay.textContent = '00:00';
-        clearInterval(timerInterval);
-        winModal.classList.remove('show');
+        resetTimer();
 
-        // Adjust grid columns based on number of pairs
         updateGridColumns();
-
-        // Prepare card data
-        const cardValues = [];
-        for (let i = 0; i < totalPairs; i++) {
-            cardValues.push(residentImages[i]);
-            cardValues.push(residentImages[i]);
-        }
-
-        // Shuffle
+        const cardValues = [...residentImages, ...residentImages];
         shuffle(cardValues);
 
-        // Create cards
         cardValues.forEach((val, index) => {
-            const card = createCard(val, index);
+            const card = createMemoryCard(val, index);
             gameGrid.appendChild(card);
         });
 
-        updateLeaderboard();
+        updateLeaderboard('memory');
     }
 
-    function createCard(imageUrl, index) {
+    function createMemoryCard(imageUrl, index) {
         const card = document.createElement('div');
         card.classList.add('memory-card');
         card.dataset.value = imageUrl;
-
-        // Front face (image)
         const front = document.createElement('div');
         front.classList.add('card-face', 'card-front');
-
         const img = document.createElement('div');
         img.classList.add('card-image');
         img.style.backgroundImage = `url('${imageUrl}')`;
         img.style.backgroundSize = 'cover';
         img.style.backgroundPosition = 'center';
-
         front.appendChild(img);
-
-        // Back face (pattern)
         const back = document.createElement('div');
         back.classList.add('card-face', 'card-back');
-
         const backText = document.createElement('span');
         backText.classList.add('card-back-text');
         backText.textContent = 'אומן 2';
         back.appendChild(backText);
-
         card.appendChild(front);
         card.appendChild(back);
-
-        card.addEventListener('click', () => flipCard(card));
+        card.addEventListener('click', () => {
+            if (!gameActive || flippedCards.length >= 2 || card.classList.contains('flipped')) return;
+            if (seconds === 0) startTimer(timerDisplay);
+            card.classList.add('flipped');
+            flippedCards.push(card);
+            if (flippedCards.length === 2) {
+                moves++;
+                moveCounterDisplay.textContent = moves;
+                setTimeout(checkMemoryMatch, 800);
+            }
+        });
         return card;
     }
 
-    function updateGridColumns() {
-        const totalCards = totalPairs * 2;
-        const width = window.innerWidth;
-        let cols = 6;
-
-        if (width <= 480) {
-            cols = 3;
-        } else if (width <= 768) {
-            cols = 4;
+    function checkMemoryMatch() {
+        const [c1, c2] = flippedCards;
+        if (c1.dataset.value === c2.dataset.value) {
+            c1.classList.add('matched');
+            c2.classList.add('matched');
+            matchedPairs++;
+            if (matchedPairs === residentImages.length) endCurrentGame('memory');
         } else {
-            if (totalCards <= 12) cols = 4;
-            else if (totalCards <= 20) cols = 5;
-            else cols = 6;
+            c1.classList.remove('flipped');
+            c2.classList.remove('flipped');
         }
+        flippedCards = [];
+    }
 
+    function updateGridColumns() {
+        const width = window.innerWidth;
+        let cols = width <= 480 ? 3 : (width <= 768 ? 4 : 6);
         gameGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     }
 
-    window.addEventListener('resize', updateGridColumns);
+    // --- "Find the Key" Game Logic (Pac-Man Style) ---
+    let keyPlayer = { x: 0, y: 0, radius: 15, speed: 4 };
+    let keys = [];
+    let missiles = [];
+    let keysCollected = 0;
+    const TOTAL_KEYS = 10;
+    let keyGameLoop;
+    let keysPressed = {};
 
-    function flipCard(card) {
-        if (!canFlip || flippedCards.includes(card) || card.classList.contains('flipped') || card.classList.contains('matched')) {
-            return;
-        }
+    function initKeyGame() {
+        gameActive = true;
+        keysCollected = 0;
+        keyCounterDisplay.textContent = `0/${TOTAL_KEYS}`;
+        resetTimer();
 
-        if (!isGameStarted) {
-            startTimer();
-            isGameStarted = true;
-        }
+        keyCanvas.width = 400;
+        keyCanvas.height = 400;
 
-        card.classList.add('flipped');
-        flippedCards.push(card);
+        // Initial setup
+        keyPlayer.x = 200;
+        keyPlayer.y = 200;
+        keys = [];
+        missiles = [];
+        for (let i = 0; i < TOTAL_KEYS; i++) spawnKey();
+        for (let i = 0; i < 3; i++) spawnMissile();
 
-        if (flippedCards.length === 2) {
-            moves++;
-            moveCounterDisplay.textContent = moves;
-            checkMatch();
-        }
+        if (keyGameLoop) cancelAnimationFrame(keyGameLoop);
+        keyGameLoop = requestAnimationFrame(updateKeyGame);
+
+        updateLeaderboard('key');
     }
 
-    function checkMatch() {
-        const [card1, card2] = flippedCards;
-        const val1 = card1.dataset.value;
-        const val2 = card2.dataset.value;
+    function spawnKey() {
+        keys.push({
+            x: Math.random() * (keyCanvas.width - 20) + 10,
+            y: Math.random() * (keyCanvas.height - 20) + 10,
+            radius: 10
+        });
+    }
 
-        if (val1 === val2) {
-            // Match found
-            card1.classList.add('matched');
-            card2.classList.add('matched');
-            matchedPairs++;
-            flippedCards = [];
+    function spawnMissile() {
+        missiles.push({
+            x: Math.random() * keyCanvas.width,
+            y: Math.random() < 0.5 ? 0 : keyCanvas.height,
+            vx: (Math.random() - 0.5) * 3,
+            vy: (Math.random() - 0.5) * 3,
+            radius: 12
+        });
+    }
 
-            if (matchedPairs === totalPairs) {
-                endGame();
+    function updateKeyGame() {
+        if (!gameActive) return;
+        if (seconds === 0 && (keysPressed['ArrowUp'] || keysPressed['ArrowDown'] || keysPressed['ArrowLeft'] || keysPressed['ArrowRight'])) {
+            startTimer(keyTimerDisplay);
+        }
+
+        // Move Player
+        if (keysPressed['ArrowUp'] && keyPlayer.y > keyPlayer.radius) keyPlayer.y -= keyPlayer.speed;
+        if (keysPressed['ArrowDown'] && keyPlayer.y < keyCanvas.height - keyPlayer.radius) keyPlayer.y += keyPlayer.speed;
+        if (keysPressed['ArrowLeft'] && keyPlayer.x > keyPlayer.radius) keyPlayer.x -= keyPlayer.speed;
+        if (keysPressed['ArrowRight'] && keyPlayer.x < keyCanvas.width - keyPlayer.radius) keyPlayer.x += keyPlayer.speed;
+
+        // Move Missiles
+        missiles.forEach(m => {
+            m.x += m.vx;
+            m.y += m.vy;
+            if (m.x < 0 || m.x > keyCanvas.width) m.vx *= -1;
+            if (m.y < 0 || m.y > keyCanvas.height) m.vy *= -1;
+
+            // Collision with Player
+            const dx = m.x - keyPlayer.x;
+            const dy = m.y - keyPlayer.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < m.radius + keyPlayer.radius) {
+                alert("נתפסת על ידי הטיל! נסה שוב.");
+                initKeyGame();
+                return;
             }
-        } else {
-            // No match
-            canFlip = false;
-            setTimeout(() => {
-                card1.classList.remove('flipped');
-                card2.classList.remove('flipped');
-                flippedCards = [];
-                canFlip = true;
-            }, 1000);
-        }
+        });
+
+        // Check Key Collection
+        keys.forEach((k, idx) => {
+            const dx = k.x - keyPlayer.x;
+            const dy = k.y - keyPlayer.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < k.radius + keyPlayer.radius) {
+                keys.splice(idx, 1);
+                keysCollected++;
+                keyCounterDisplay.textContent = `${keysCollected}/${TOTAL_KEYS}`;
+                if (keysCollected === TOTAL_KEYS) {
+                    endCurrentGame('key');
+                }
+            }
+        });
+
+        drawKeyGame();
+        keyGameLoop = requestAnimationFrame(updateKeyGame);
     }
 
-    function startTimer() {
-        timerInterval = setInterval(() => {
-            seconds++;
-            const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
-            const ss = String(seconds % 60).padStart(2, '0');
-            timerDisplay.textContent = `${mm}:${ss}`;
-        }, 1000);
+    function drawKeyGame() {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, keyCanvas.width, keyCanvas.height);
+
+        // Draw Player (Small House/Square)
+        ctx.fillStyle = '#007bff';
+        ctx.beginPath();
+        ctx.arc(keyPlayer.x, keyPlayer.y, keyPlayer.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🏠', keyPlayer.x, keyPlayer.y + 5);
+
+        // Draw Keys
+        ctx.fillStyle = '#ffc107';
+        keys.forEach(k => {
+            ctx.font = '20px Arial';
+            ctx.fillText('🔑', k.x, k.y + 7);
+        });
+
+        // Draw Missiles
+        missiles.forEach(m => {
+            ctx.fillStyle = '#ff4d4d';
+            ctx.beginPath();
+            ctx.moveTo(m.x, m.y - m.radius);
+            ctx.lineTo(m.x - m.radius, m.y + m.radius);
+            ctx.lineTo(m.x + m.radius, m.y + m.radius);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px Arial';
+            ctx.fillText('🚀', m.x, m.y + 5);
+        });
     }
 
-    function endGame() {
+    // --- End Game Logic ---
+
+    function endCurrentGame(type) {
+        gameActive = false;
         clearInterval(timerInterval);
-        const finalTime = timerDisplay.textContent;
-        winMessage.textContent = `כל הכבוד ${currentPlayer.name} מדירה ${currentPlayer.apt}! סיימתם ב-${moves} תנועות ובזמן של ${finalTime}`;
+        const finalTimeStr = (type === 'memory' ? timerDisplay : keyTimerDisplay).textContent;
+        const funnyCommentDisplay = document.getElementById('funny-comment');
 
-        // Pick a funny comment
-        const funnyComments = [
-            "רק ריינשרייבר יכול לנהל כאן את הקרב הזה!",
-            "דירה " + currentPlayer.apt + " בדרך להיות וועד הבית הבא...",
-            "מה קורה עם לאה? היא עדיין תקועה בלובי?",
-            "מי וועד הבית!? צריך כאן משחק חוזר דחוף!",
-            "דירה 12 כבר מתחילה להזיע, מישהו עוקף אותם!",
-            "קצב מצוין! אפילו המעלית של אומן 2 עובדת יותר לאט...",
-            "נראה שיש לנו אלוף חדש בבניין! ריינשרייבר, לטיפולך.",
-            "משחק נקי, בלי חריגות בנייה ובלי תלונות לשכנים.",
-            "האם שמענו את לאה אומרת שזה היה מזל של מתחילים?",
-            "וועד הבית מאשר: תוצאה חוקית למהדרין!"
-        ];
-        const randomComment = funnyComments[Math.floor(Math.random() * funnyComments.length)];
-        funnyCommentDisplay.textContent = randomComment;
+        let msg = `כל הכבוד ${currentPlayer.name} מדירה ${currentPlayer.apt}! `;
+        let comment = "";
 
-        // Save score automatically now that we have player info
-        saveScore(currentPlayer.name, currentPlayer.apt, finalTime, seconds);
+        if (type === 'memory') {
+            msg += `סיימתם את משחק הזיכרון ב-${moves} תנועות ובזמן של ${finalTimeStr}`;
+            comment = "מי וועד הבית!? צריך כאן משחק חוזר דחוף!";
+        } else {
+            msg += `אספתם את כל המפתחות בזמן של ${finalTimeStr}!`;
+            comment = "כל הכבוד גם אתם למדתם לשמור על מפתח בממד!";
+        }
 
-        setTimeout(() => {
-            winModal.classList.add('show');
-        }, 500);
+        document.getElementById('win-message').textContent = msg;
+        funnyCommentDisplay.textContent = comment;
+
+        saveScore(currentPlayer.name, currentPlayer.apt, finalTimeStr, seconds, type);
+        winModal.classList.add('show');
     }
+
+    // --- Leaderboard API ---
+
+    async function saveScore(name, apt, timeStr, timeSeconds, gameType) {
+        try {
+            await fetch('/api/scores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, apt, timeStr, timeSeconds, game: gameType })
+            });
+            updateLeaderboard(gameType);
+        } catch (e) { console.error(e); }
+    }
+
+    async function updateLeaderboard(gameType) {
+        try {
+            const res = await fetch(`/api/scores?gameType=${gameType}`);
+            const scores = await res.json();
+            const leaderboardBody = document.getElementById('leaderboard-body');
+            leaderboardBody.innerHTML = '';
+            scores.forEach((s, i) => {
+                leaderboardBody.innerHTML += `<tr><td>${i + 1}</td><td>${s.name} (דירה ${s.apt})</td><td>${s.timeStr}</td></tr>`;
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    // --- Event Listeners ---
+
+    gameChoiceBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            gameChoiceBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedGame = btn.dataset.game;
+        });
+    });
+
+    startGameBtn.addEventListener('click', () => {
+        const name = initialNameInput.value.trim();
+        const apt = initialAptInput.value.trim();
+        if (!name || !apt) return alert('נא להזין שם ודירה');
+
+        currentPlayer = { name, apt };
+        startModal.classList.remove('show');
+
+        if (selectedGame === 'memory') {
+            memoryGameView.style.display = 'block';
+            keyGameView.style.display = 'none';
+            gameSubtitle.textContent = 'מצאו את הזוגות כמה שיותר מהר!';
+            initMemoryGame();
+        } else {
+            memoryGameView.style.display = 'none';
+            keyGameView.style.display = 'block';
+            gameSubtitle.textContent = 'אספו את כל המפתחות ושימרו עליהם בממד!';
+            initKeyGame();
+        }
+    });
+
+    restartBtn.addEventListener('click', () => { gameActive = false; startModal.classList.add('show'); });
+    keyRestartBtn.addEventListener('click', () => { gameActive = false; startModal.classList.add('show'); });
+    document.getElementById('close-modal-btn').addEventListener('click', () => winModal.classList.remove('show'));
+
+    window.addEventListener('keydown', e => keysPressed[e.key] = true);
+    window.addEventListener('keyup', e => delete keysPressed[e.key]);
+
+    // Mobile buttons
+    const bindBtn = (id, key) => {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); keysPressed[key] = true; });
+        el.addEventListener('touchend', (e) => { e.preventDefault(); delete keysPressed[key]; });
+        el.addEventListener('mousedown', () => { keysPressed[key] = true; });
+        el.addEventListener('mouseup', () => { delete keysPressed[key]; });
+    };
+    bindBtn('up-btn', 'ArrowUp');
+    bindBtn('down-btn', 'ArrowDown');
+    bindBtn('left-btn', 'ArrowLeft');
+    bindBtn('right-btn', 'ArrowRight');
 
     function shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
@@ -228,83 +381,4 @@ document.addEventListener('DOMContentLoaded', () => {
             [array[i], array[j]] = [array[j], array[i]];
         }
     }
-
-    // Leaderboard Logic (Shared via Vercel KV)
-    async function saveScore(name, apt, timeStr, timeSeconds) {
-        try {
-            await fetch('/api/scores', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, apt, timeStr, timeSeconds })
-            });
-            updateLeaderboard();
-        } catch (error) {
-            console.error('Error saving score:', error);
-            // Fallback to local storage if API fails
-            let localLeaderboard = JSON.parse(localStorage.getItem('oman_israel_leaderboard') || '[]');
-            localLeaderboard.push({ name: `${name} (דירה ${apt})`, timeStr, timeSeconds });
-            localLeaderboard.sort((a, b) => a.timeSeconds - b.timeSeconds);
-            localStorage.setItem('oman_israel_leaderboard', JSON.stringify(localLeaderboard.slice(0, 5)));
-            updateLeaderboard();
-        }
-    }
-
-    async function updateLeaderboard() {
-        try {
-            const response = await fetch('/api/scores');
-            if (!response.ok) throw new Error('API Error');
-            const scores = await response.json();
-
-            const formattedScores = scores.map(s => ({
-                name: `${s.name} (דירה ${s.apt})`,
-                timeStr: s.timeStr
-            }));
-
-            displayLeaderboard(formattedScores);
-        } catch (error) {
-            console.error('Error fetching scores:', error);
-            // fallback to local
-            const local = JSON.parse(localStorage.getItem('oman_israel_leaderboard') || '[]');
-            displayLeaderboard(local);
-        }
-    }
-
-    function displayLeaderboard(leaderboard) {
-        if (leaderboard.length === 0) {
-            leaderboard = [{ name: 'מחכה לשיא הראשון...', timeStr: '--:--' }];
-        }
-
-        leaderboardBody.innerHTML = '';
-        leaderboard.forEach((entry, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${entry.name}</td>
-                <td>${entry.timeStr}</td>
-            `;
-            leaderboardBody.appendChild(row);
-        });
-    }
-
-    startGameBtn.addEventListener('click', () => {
-        const name = initialNameInput.value.trim();
-        const apt = initialAptInput.value.trim();
-
-        if (name && apt) {
-            currentPlayer = { name, apt };
-            startModal.classList.remove('show');
-            initGame();
-        } else {
-            alert('בבקשה הכניסו שם ומספר דירה כדי להתחיל');
-        }
-    });
-
-    closeModalBtn.addEventListener('click', () => {
-        winModal.classList.remove('show');
-    });
-
-    restartBtn.addEventListener('click', initGame);
-
-    // Initial load
-    updateLeaderboard();
 });
