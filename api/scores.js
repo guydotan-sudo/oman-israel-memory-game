@@ -1,7 +1,5 @@
 import Redis from 'ioredis';
 
-// אתחול הקשר ל-Redis (שימוש במשתנה סביבה בורסל)
-// אם אין משתנה סביבה, נשתמש בכתובת שסיפקת כברירת מחדל (אבל עדיף להגדיר בורסל)
 const redisUrl = process.env.REDIS_URL || 'redis://default:VXS9hZEaViO02XgQ4AuEMffkQkJKfoXU@redis-16811.c265.us-east-1-2.ec2.cloud.redislabs.com:16811';
 const redis = new Redis(redisUrl);
 
@@ -11,26 +9,26 @@ export default async function handler(request, response) {
             const { gameType = 'memory' } = request.query;
             const kvKey = `oman_scores_${gameType}`;
 
-            // שליפת 100 השיאים הטובים ביותר (זמן נמוך יותר = מקום גבוה יותר)
-            const scores = await redis.zrange(kvKey, 0, 99, 'WITHSCORES');
+            // Fetch top 100 scores (sorted by score ASC, where score = timeSeconds)
+            const rawScores = await redis.zrange(kvKey, 0, 99, 'WITHSCORES');
 
-            const formattedScores = [];
-            for (let i = 0; i < scores.length; i += 2) {
+            const formatted = [];
+            for (let i = 0; i < rawScores.length; i += 2) {
                 try {
-                    const data = JSON.parse(scores[i]);
-                    formattedScores.push({
+                    const data = JSON.parse(rawScores[i]);
+                    formatted.push({
                         name: data.name,
                         apt: data.apt,
                         timeStr: data.timeStr,
-                        timeSeconds: parseFloat(scores[i + 1])
+                        timeSeconds: parseFloat(rawScores[i + 1])
                     });
                 } catch (e) { continue; }
             }
 
-            return response.status(200).json(formattedScores);
+            return response.status(200).json(formatted);
         } catch (error) {
             console.error('Redis GET Error:', error);
-            return response.status(500).json({ error: "Failed to fetch scores", detail: error.message });
+            return response.status(500).json({ error: "Failed to fetch scores." });
         }
     }
 
@@ -38,13 +36,15 @@ export default async function handler(request, response) {
         try {
             let body = request.body;
             if (typeof body === 'string') {
-                try { body = JSON.parse(body); } catch (e) { }
+                try { body = JSON.parse(body); } catch (e) {
+                    return response.status(400).json({ error: "Invalid JSON body string." });
+                }
             }
 
             const { name, apt, timeStr, timeSeconds, game = 'memory' } = body;
 
-            if (!name || !apt) {
-                return response.status(400).json({ error: "Missing player details" });
+            if (!name || !apt || typeof timeSeconds === 'undefined') {
+                return response.status(400).json({ error: "Missing required fields (name, apt, timeSeconds)." });
             }
 
             const targetKey = `oman_scores_${game}`;
@@ -55,13 +55,13 @@ export default async function handler(request, response) {
                 uid: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
             });
 
-            // הוספה ל-Sorted Set (ZADD)
+            // Redis ZADD: key score member
             await redis.zadd(targetKey, timeSeconds, scoreData);
 
             return response.status(200).json({ message: 'Score saved!' });
         } catch (error) {
             console.error('Redis POST Error:', error);
-            return response.status(500).json({ error: "Failed to save score", detail: error.message });
+            return response.status(500).json({ error: "Failed to save score." });
         }
     }
 

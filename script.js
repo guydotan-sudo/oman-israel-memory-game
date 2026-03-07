@@ -402,7 +402,10 @@ document.addEventListener('DOMContentLoaded', () => {
         winModal.classList.add('show');
 
         // Save score and update leaderboard with moves count included in the time string
-        const scoreReport = type === 'puzzle' ? `${finalTimeStr} (${puzzleMoves} תנועות)` : finalTimeStr;
+        let scoreReport = finalTimeStr;
+        if (type === 'puzzle') scoreReport = `${finalTimeStr} (${puzzleMoves} תנועות)`;
+        if (type === 'memory') scoreReport = `${finalTimeStr} (${moves} תנועות)`;
+
         saveScore(currentPlayer.name, currentPlayer.apt, scoreReport, seconds, type);
     }
 
@@ -424,7 +427,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const title = gameType === 'memory' ? 'משחק הזיכרון' : (gameType === 'key' ? 'מצא את המפתח' : 'פאזל הזזה');
             leaderboardTitle.textContent = `טבלת שיאים - ${title}`;
 
-            const res = await fetch(`/api/scores?gameType=${gameType}`);
+            // Add a timestamp to prevent caching
+            const res = await fetch(`/api/scores?gameType=${gameType}&t=${Date.now()}`);
             if (!res.ok) throw new Error('Failed to fetch scores');
             const scores = await res.json();
 
