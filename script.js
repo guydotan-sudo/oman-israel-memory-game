@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const memoryGameView = document.getElementById('memory-game-view');
     const keyGameView = document.getElementById('key-game-view');
     const puzzleGameView = document.getElementById('puzzle-game-view');
+    const snakesGameView = document.getElementById('snakes-game-view');
     const startModal = document.getElementById('start-modal');
     const winModal = document.getElementById('win-modal');
     const winMessage = document.getElementById('win-message');
@@ -36,6 +37,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const puzzleRestartBtn = document.getElementById('puzzle-restart-btn');
     const puzzleHintBtn = document.getElementById('puzzle-hint-btn');
     const puzzlePreview = document.getElementById('puzzle-preview');
+
+    // Snakes and Ladders Elements
+    const snakesBoard = document.getElementById('snakes-board');
+    const diceResult = document.getElementById('dice-result');
+    const rollDiceBtn = document.getElementById('roll-dice-btn');
+    const snakesTimerDisplay = document.getElementById('snakes-timer');
+    const snakesMovesDisplay = document.getElementById('snakes-moves');
+    const snakesRestartBtn = document.getElementById('snakes-restart-btn');
 
     // Global State
     let currentPlayer = { name: '', apt: '' };
@@ -73,10 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (timerDisplay) timerDisplay.textContent = str;
         if (keyTimerDisplay) keyTimerDisplay.textContent = str;
         if (puzzleTimerDisplay) puzzleTimerDisplay.textContent = str;
+        if (snakesTimerDisplay) snakesTimerDisplay.textContent = str;
     }
 
     // --- Memory Game Logic ---
-    let cards = [];
     let flippedCards = [];
     let matchedPairs = 0;
     let moves = 0;
@@ -113,8 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = document.createElement('div');
         img.classList.add('card-image');
         img.style.backgroundImage = `url('${imageUrl}')`;
-        img.style.backgroundSize = 'cover';
-        img.style.backgroundPosition = 'center';
         front.appendChild(img);
         const back = document.createElement('div');
         back.classList.add('card-face', 'card-back');
@@ -158,9 +165,9 @@ document.addEventListener('DOMContentLoaded', () => {
         gameGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     }
 
-    // --- "Find the Key" Game Logic ---
+    // --- Key Game (Pac-Man) Logic ---
     let keyPlayer = { x: 0, y: 0, radius: 15, speed: 4 };
-    let keys = [];
+    let keysPositions = [];
     let missiles = [];
     let keysCollected = 0;
     const TOTAL_KEYS = 10;
@@ -179,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         keyPlayer.x = 200;
         keyPlayer.y = 200;
-        keys = [];
+        keysPositions = [];
         missiles = [];
         for (let i = 0; i < TOTAL_KEYS; i++) spawnKey();
         for (let i = 0; i < 3; i++) spawnMissile();
@@ -191,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function spawnKey() {
-        keys.push({
+        keysPositions.push({
             x: Math.random() * (keyCanvas.width - 20) + 10,
             y: Math.random() * (keyCanvas.height - 20) + 10,
             radius: 10
@@ -221,63 +228,36 @@ document.addEventListener('DOMContentLoaded', () => {
         if (keysPressed['ArrowRight'] && keyPlayer.x < keyCanvas.width - keyPlayer.radius) keyPlayer.x += keyPlayer.speed;
 
         missiles.forEach(m => {
-            m.x += m.vx;
-            m.y += m.vy;
+            m.x += m.vx; m.y += m.vy;
             if (m.x < 0 || m.x > keyCanvas.width) m.vx *= -1;
             if (m.y < 0 || m.y > keyCanvas.height) m.vy *= -1;
 
-            const dx = m.x - keyPlayer.x;
-            const dy = m.y - keyPlayer.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < m.radius + keyPlayer.radius) {
+            const dx = m.x - keyPlayer.x, dy = m.y - keyPlayer.y;
+            if (Math.sqrt(dx * dx + dy * dy) < m.radius + keyPlayer.radius) {
                 gameActive = false;
                 clearInterval(timerInterval);
                 alert("אופס, נתקעת בממד.. תקרא לגיא (דירה 17)");
                 startModal.classList.add('show');
-                return;
             }
         });
 
-        for (let i = keys.length - 1; i >= 0; i--) {
-            const k = keys[i];
-            const dx = k.x - keyPlayer.x;
-            const dy = k.y - keyPlayer.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < k.radius + keyPlayer.radius) {
-                keys.splice(i, 1);
+        for (let i = keysPositions.length - 1; i >= 0; i--) {
+            const k = keysPositions[i];
+            const dx = k.x - keyPlayer.x, dy = k.y - keyPlayer.y;
+            if (Math.sqrt(dx * dx + dy * dy) < k.radius + keyPlayer.radius) {
+                keysPositions.splice(i, 1);
                 keysCollected++;
                 keyCounterDisplay.textContent = `${keysCollected}/${TOTAL_KEYS}`;
-                if (keysCollected === TOTAL_KEYS) {
-                    endCurrentGame('key');
-                    return;
-                }
+                if (keysCollected === TOTAL_KEYS) endCurrentGame('key');
             }
         }
 
-        drawKeyGame();
-        keyGameLoop = requestAnimationFrame(updateKeyGame);
-    }
-
-    function drawKeyGame() {
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, keyCanvas.width, keyCanvas.height);
-        ctx.fillStyle = '#222';
-        for (let i = 0; i < 10; i++) ctx.fillRect(i * 40, (i * 30) % 400, 2, 2);
-        ctx.font = '30px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, keyCanvas.width, keyCanvas.height);
+        ctx.font = '30px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('🏃', keyPlayer.x, keyPlayer.y);
-        keys.forEach(k => {
-            ctx.font = '24px Arial';
-            ctx.fillText('🔑', k.x, k.y);
-        });
-        missiles.forEach(m => {
-            ctx.font = '28px Arial';
-            ctx.fillText('🚀', m.x, m.y);
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = "red";
-        });
-        ctx.shadowBlur = 0;
+        keysPositions.forEach(k => ctx.fillText('🔑', k.x, k.y));
+        missiles.forEach(m => ctx.fillText('🚀', m.x, m.y));
+        keyGameLoop = requestAnimationFrame(updateKeyGame);
     }
 
     // --- Sliding Puzzle Logic ---
@@ -287,62 +267,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const PUZZLE_SIZE = 3;
 
     function initPuzzleGame() {
-        gameActive = true;
-        timerRunning = false;
-        puzzleMoves = 0;
-        puzzleMovesDisplay.textContent = '0';
+        gameActive = true; timerRunning = false; puzzleMoves = 0; puzzleMovesDisplay.textContent = '0';
         resetTimer();
-
-        // Pick random resident image
         puzzleImage = residentImages[Math.floor(Math.random() * residentImages.length)];
         puzzlePreview.style.backgroundImage = `url('${puzzleImage}')`;
-
-        // Initialize tiles in solved state
-        puzzleTiles = Array.from({ length: PUZZLE_SIZE * PUZZLE_SIZE }, (_, i) => i);
-
-        // Shuffle by making random valid moves from solved state
+        puzzleTiles = Array.from({ length: 9 }, (_, i) => i);
         shufflePuzzleSolvable();
         renderPuzzle();
         updateLeaderboard('puzzle');
     }
 
     function shufflePuzzleSolvable() {
-        // Start from solved state
-        let emptyPos = PUZZLE_SIZE * PUZZLE_SIZE - 1;
+        let emptyPos = 8;
         for (let i = 0; i < 200; i++) {
-            const neighbors = getNeighbors(emptyPos);
+            const neighbors = getNeighbors(emptyPos, PUZZLE_SIZE);
             const move = neighbors[Math.floor(Math.random() * neighbors.length)];
             [puzzleTiles[emptyPos], puzzleTiles[move]] = [puzzleTiles[move], puzzleTiles[emptyPos]];
             emptyPos = move;
         }
     }
 
-    function getNeighbors(pos) {
-        const neighbors = [];
-        const r = Math.floor(pos / PUZZLE_SIZE);
-        const c = pos % PUZZLE_SIZE;
-        if (r > 0) neighbors.push(pos - PUZZLE_SIZE);
-        if (r < PUZZLE_SIZE - 1) neighbors.push(pos + PUZZLE_SIZE);
+    function getNeighbors(pos, size) {
+        const neighbors = [], r = Math.floor(pos / size), c = pos % size;
+        if (r > 0) neighbors.push(pos - size);
+        if (r < size - 1) neighbors.push(pos + size);
         if (c > 0) neighbors.push(pos - 1);
-        if (c < PUZZLE_SIZE - 1) neighbors.push(pos + 1);
+        if (c < size - 1) neighbors.push(pos + 1);
         return neighbors;
     }
 
     function renderPuzzle() {
         puzzleGrid.innerHTML = '';
-        puzzleTiles.forEach((tileValue, index) => {
+        puzzleTiles.forEach((val, i) => {
             const tile = document.createElement('div');
             tile.classList.add('puzzle-tile');
-
-            if (tileValue === PUZZLE_SIZE * PUZZLE_SIZE - 1) {
-                tile.classList.add('empty');
-            } else {
+            if (val === 8) tile.classList.add('empty');
+            else {
                 tile.style.backgroundImage = `url('${puzzleImage}')`;
-                const r = Math.floor(tileValue / PUZZLE_SIZE);
-                const c = tileValue % PUZZLE_SIZE;
-                // Calculate background position based on 300% size (3x3)
-                tile.style.backgroundPosition = `${(c / (PUZZLE_SIZE - 1)) * 100}% ${(r / (PUZZLE_SIZE - 1)) * 100}%`;
-                tile.addEventListener('click', () => movePuzzleTile(index));
+                const r = Math.floor(val / 3), c = val % 3;
+                tile.style.backgroundPosition = `${c * 50}% ${r * 50}%`;
+                tile.addEventListener('click', () => movePuzzleTile(i));
             }
             puzzleGrid.appendChild(tile);
         });
@@ -350,66 +314,159 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function movePuzzleTile(index) {
         if (!gameActive) return;
-        const emptyPos = puzzleTiles.indexOf(PUZZLE_SIZE * PUZZLE_SIZE - 1);
-        const neighbors = getNeighbors(index);
-
-        if (neighbors.includes(emptyPos)) {
+        const emptyPos = puzzleTiles.indexOf(8);
+        if (getNeighbors(index, 3).includes(emptyPos)) {
             if (!timerRunning) startTimer(puzzleTimerDisplay);
             [puzzleTiles[index], puzzleTiles[emptyPos]] = [puzzleTiles[emptyPos], puzzleTiles[index]];
-            puzzleMoves++;
-            puzzleMovesDisplay.textContent = puzzleMoves;
+            puzzleMoves++; puzzleMovesDisplay.textContent = puzzleMoves;
             renderPuzzle();
-            checkPuzzleWin();
+            if (puzzleTiles.every((v, i) => v === i)) endCurrentGame('puzzle');
         }
     }
 
-    function checkPuzzleWin() {
-        const isWin = puzzleTiles.every((val, i) => val === i);
-        if (isWin) {
-            endCurrentGame('puzzle');
+    // --- Snakes and Ladders Logic ---
+    let snakesPlayerPos = 0; // 0-99
+    let snakesMoves = 0;
+    const ladersSnakes = {
+        // Ladders (Jump Up)
+        12: 35, // Blood Donation example
+        45: 78,
+        60: 88,
+        // Snakes (Fall Down)
+        98: 10, // Committee Dues example
+        75: 35,
+        25: 5
+    };
+
+    function initSnakesGame() {
+        gameActive = true; timerRunning = false; snakesMoves = 0; snakesPlayerPos = 0;
+        snakesMovesDisplay.textContent = '0'; diceResult.textContent = '?';
+        resetTimer();
+        createSnakesBoard();
+        updateLeaderboard('snakes');
+    }
+
+    function createSnakesBoard() {
+        snakesBoard.innerHTML = '';
+        // Create 100 tiles
+        for (let i = 99; i >= 0; i--) {
+            // Zig-zag pattern
+            const row = Math.floor(i / 10);
+            const col = (row % 2 === 0) ? (i % 10) : (9 - (i % 10));
+            const tileNum = i + 1;
+            const tile = document.createElement('div');
+            tile.classList.add('snakes-tile');
+            tile.id = `tile-${i}`;
+            tile.textContent = tileNum;
+
+            if (ladersSnakes[i]) {
+                if (ladersSnakes[i] > i) {
+                    tile.classList.add('special-ladder');
+                    tile.innerHTML = `<span>${tileNum}</span><div class="tile-icon">🪜</div>`;
+                } else {
+                    tile.classList.add('special-snake');
+                    tile.innerHTML = `<span>${tileNum}</span><div class="tile-icon">🐍</div>`;
+                }
+            }
+            if (i === 99) {
+                tile.classList.add('finish-tile');
+                tile.style.backgroundImage = "url('assets/building.jpg')";
+                tile.innerHTML = `<span>100</span><div class="tile-icon">🏠</div>`;
+            }
+            snakesBoard.appendChild(tile);
+        }
+        // Add player piece
+        const player = document.createElement('div');
+        player.id = 'player-piece';
+        player.classList.add('player-piece');
+        player.textContent = '👤';
+        snakesBoard.appendChild(player);
+        updatePlayerPos();
+    }
+
+    function updatePlayerPos() {
+        const player = document.getElementById('player-piece');
+        const tile = document.getElementById(`tile-${snakesPlayerPos}`);
+        if (!tile) return;
+
+        // Rect of tile relative to board
+        const tileRect = tile.getBoundingClientRect();
+        const boardRect = snakesBoard.getBoundingClientRect();
+
+        player.style.left = `${tileRect.left - boardRect.left + (tileRect.width / 2 - 17.5)}px`;
+        player.style.top = `${tileRect.top - boardRect.top + (tileRect.height / 2 - 17.5)}px`;
+    }
+
+    async function rollDice() {
+        if (!gameActive || rollDiceBtn.disabled) return;
+        if (!timerRunning) startTimer(snakesTimerDisplay);
+
+        rollDiceBtn.disabled = true;
+        diceResult.classList.add('rolling');
+
+        const roll = Math.floor(Math.random() * 6) + 1;
+
+        setTimeout(() => {
+            diceResult.classList.remove('rolling');
+            diceResult.textContent = roll;
+            snakesMoves++;
+            snakesMovesDisplay.textContent = snakesMoves;
+            movePlayer(roll);
+        }, 1000);
+    }
+
+    async function movePlayer(steps) {
+        for (let i = 0; i < steps; i++) {
+            if (snakesPlayerPos >= 99) break;
+            snakesPlayerPos++;
+            updatePlayerPos();
+            await new Promise(r => setTimeout(r, 200));
+        }
+
+        // Check for special tiles
+        if (ladersSnakes[snakesPlayerPos]) {
+            const dest = ladersSnakes[snakesPlayerPos];
+            const isLadder = dest > snakesPlayerPos;
+
+            setTimeout(() => {
+                alert(isLadder ? "איזו נתינה! תרמת דם וקפצת למעלה!" : "אופס! חוב לוועד הבית... יורדים למטה.");
+                snakesPlayerPos = dest;
+                updatePlayerPos();
+                rollDiceBtn.disabled = false;
+            }, 600);
+        } else if (snakesPlayerPos === 99) {
+            endCurrentGame('snakes');
+        } else {
+            rollDiceBtn.disabled = false;
         }
     }
 
-    // --- End Game Logic ---
-
+    // --- Shared Logic ---
     function endCurrentGame(type) {
-        gameActive = false;
-        timerRunning = false;
-        clearInterval(timerInterval);
-
-        let display = timerDisplay;
-        if (type === 'key') display = keyTimerDisplay;
-        if (type === 'puzzle') display = puzzleTimerDisplay;
-
+        gameActive = false; timerRunning = false; clearInterval(timerInterval);
+        const display = type === 'memory' ? timerDisplay : (type === 'key' ? keyTimerDisplay : (type === 'puzzle' ? puzzleTimerDisplay : snakesTimerDisplay));
         const finalTimeStr = display.textContent;
-
-        let msg = `כל הכבוד ${currentPlayer.name} מדירה ${currentPlayer.apt}! `;
+        let msg = `כל הכבוד ${currentPlayer.name} (דירה ${currentPlayer.apt})! `;
         let comment = "";
 
         if (type === 'memory') {
-            msg += `סיימתם את משחק הזיכרון ב-${moves} תנועות ובזמן של ${finalTimeStr}`;
+            msg += `סיימתם ב-${moves} תנועות ובזמן של ${finalTimeStr}`;
             comment = "מי וועד הבית!? צריך כאן משחק חוזר דחוף!";
         } else if (type === 'key') {
             msg += `אספתם את כל המפתחות בזמן של ${finalTimeStr}!`;
             comment = "כל הכבוד גם אתם למדתם לשמור על מפתח בממד!";
         } else if (type === 'puzzle') {
             msg += `פתרתם את הפאזל ב-${puzzleMoves} תנועות ובזמן של ${finalTimeStr}!`;
-            comment = "כל הכבוד דייר/ת למופת, אין ספק שאתה משקיע בבניין! רוצה משחק חדש או אחר?";
+            comment = "כל הכבוד דייר/ת למופת, אין ספק שאתה משקיע בבניין!";
+        } else if (type === 'snakes') {
+            msg += `הגעתם לממ"ד ב-${snakesMoves} צעדים ובזמן של ${finalTimeStr}!`;
+            comment = "ניצחתם את הסולמות והנחשים של אומן 2!";
         }
 
-        winMessage.textContent = msg;
-        funnyCommentDisplay.textContent = comment;
-        winModal.classList.add('show');
-
-        // Save score and update leaderboard with moves count included in the time string
-        let scoreReport = finalTimeStr;
-        if (type === 'puzzle') scoreReport = `${finalTimeStr} (${puzzleMoves} תנועות)`;
-        if (type === 'memory') scoreReport = `${finalTimeStr} (${moves} תנועות)`;
-
+        winMessage.textContent = msg; funnyCommentDisplay.textContent = comment; winModal.classList.add('show');
+        const scoreReport = (type === 'snakes' ? `${finalTimeStr} (${snakesMoves} צעדים)` : (type === 'puzzle' ? `${finalTimeStr} (${puzzleMoves} תנועות)` : finalTimeStr));
         saveScore(currentPlayer.name, currentPlayer.apt, scoreReport, seconds, type);
     }
-
-    // --- Leaderboard API ---
 
     async function saveScore(name, apt, timeStr, timeSeconds, gameType) {
         try {
@@ -424,98 +481,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function updateLeaderboard(gameType) {
         try {
-            const title = gameType === 'memory' ? 'משחק הזיכרון' : (gameType === 'key' ? 'מצא את המפתח' : 'פאזל הזזה');
+            const title = gameType === 'memory' ? 'זיכרון' : (gameType === 'key' ? 'מפתחות' : (gameType === 'puzzle' ? 'פאזל' : 'סולמות ונחשים'));
             leaderboardTitle.textContent = `טבלת שיאים - ${title}`;
-
-            // Add a timestamp to prevent caching
             const res = await fetch(`/api/scores?gameType=${gameType}&t=${Date.now()}`);
-            if (!res.ok) throw new Error('Failed to fetch scores');
             const scores = await res.json();
-
-            const leaderboardBody = document.getElementById('leaderboard-body');
-            leaderboardBody.innerHTML = '';
-
-            if (scores.length === 0) {
-                leaderboardBody.innerHTML = '<tr><td colspan="3">מחכה לשיא הראשון...</td></tr>';
-                return;
-            }
-
+            const body = document.getElementById('leaderboard-body');
+            body.innerHTML = scores.length ? '' : '<tr><td colspan="3">מחכה לשיא הראשון...</td></tr>';
             scores.forEach((s, i) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `<td>${i + 1}</td><td>${s.name} (דירה ${s.apt})</td><td>${s.timeStr}</td>`;
-                leaderboardBody.appendChild(row);
+                body.appendChild(row);
             });
-        } catch (e) { console.error('Leaderboard error:', e); }
+        } catch (e) { console.error(e); }
     }
 
-    // --- Event Listeners ---
+    function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } }
 
-    gameChoiceBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            gameChoiceBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            selectedGame = btn.dataset.game;
-        });
-    });
+    gameChoiceBtns.forEach(btn => btn.addEventListener('click', () => {
+        gameChoiceBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); selectedGame = btn.dataset.game;
+    }));
 
     startGameBtn.addEventListener('click', () => {
-        const name = initialNameInput.value.trim();
-        const apt = initialAptInput.value.trim();
-        if (!name || !apt) return alert('נא להזין שם ודירה');
-
-        currentPlayer = { name, apt };
-        startModal.classList.remove('show');
-
-        memoryGameView.style.display = 'none';
-        keyGameView.style.display = 'none';
-        puzzleGameView.style.display = 'none';
-
-        if (selectedGame === 'memory') {
-            memoryGameView.style.display = 'block';
-            gameSubtitle.textContent = 'מצאו את הזוגות כמה שיותר מהר!';
-            initMemoryGame();
-        } else if (selectedGame === 'key') {
-            keyGameView.style.display = 'block';
-            gameSubtitle.textContent = 'אספו את כל המפתחות ושימרו עליהם בממד!';
-            initKeyGame();
-        } else if (selectedGame === 'puzzle') {
-            puzzleGameView.style.display = 'block';
-            gameSubtitle.textContent = 'החליקו את החלקים וסדרו את התמונה!';
-            initPuzzleGame();
-        }
+        const n = initialNameInput.value.trim(), a = initialAptInput.value.trim();
+        if (!n || !a) return alert('נא להזין שם ודירה');
+        currentPlayer = { name: n, apt: a }; startModal.classList.remove('show');
+        [memoryGameView, keyGameView, puzzleGameView, snakesGameView].forEach(v => v.style.display = 'none');
+        if (selectedGame === 'memory') { memoryGameView.style.display = 'block'; initMemoryGame(); }
+        else if (selectedGame === 'key') { keyGameView.style.display = 'block'; initKeyGame(); }
+        else if (selectedGame === 'puzzle') { puzzleGameView.style.display = 'block'; initPuzzleGame(); }
+        else if (selectedGame === 'snakes') { snakesGameView.style.display = 'block'; initSnakesGame(); }
     });
 
-    restartBtn.addEventListener('click', () => { gameActive = false; startModal.classList.add('show'); });
-    keyRestartBtn.addEventListener('click', () => { gameActive = false; startModal.classList.add('show'); });
-    puzzleRestartBtn.addEventListener('click', () => { gameActive = false; startModal.classList.add('show'); });
-
-    puzzleHintBtn.addEventListener('mousedown', () => puzzlePreview.classList.add('show'));
-    puzzleHintBtn.addEventListener('mouseup', () => puzzlePreview.classList.remove('show'));
-    puzzleHintBtn.addEventListener('touchstart', (e) => { e.preventDefault(); puzzlePreview.classList.add('show'); });
-    puzzleHintBtn.addEventListener('touchend', (e) => { e.preventDefault(); puzzlePreview.classList.remove('show'); });
-
+    [restartBtn, keyRestartBtn, puzzleRestartBtn, snakesRestartBtn].forEach(b => b.addEventListener('click', () => { gameActive = false; startModal.classList.add('show'); }));
+    rollDiceBtn.addEventListener('click', rollDice);
     document.getElementById('close-modal-btn').addEventListener('click', () => winModal.classList.remove('show'));
-
-    window.addEventListener('keydown', e => keysPressed[e.key] = true);
-    window.addEventListener('keyup', e => delete keysPressed[e.key]);
-
-    const bindBtn = (id, key) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.addEventListener('touchstart', (e) => { e.preventDefault(); keysPressed[key] = true; });
-        el.addEventListener('touchend', (e) => { e.preventDefault(); delete keysPressed[key]; });
-        el.addEventListener('mousedown', () => { keysPressed[key] = true; });
-        el.addEventListener('mouseup', () => { delete keysPressed[key]; });
-    };
-    bindBtn('up-btn', 'ArrowUp');
-    bindBtn('down-btn', 'ArrowDown');
-    bindBtn('left-btn', 'ArrowLeft');
-    bindBtn('right-btn', 'ArrowRight');
-
-    function shuffle(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-    }
+    window.addEventListener('keydown', e => keysPressed[e.key] = true); window.addEventListener('keyup', e => delete keysPressed[e.key]);
 });
