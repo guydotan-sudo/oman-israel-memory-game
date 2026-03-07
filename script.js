@@ -394,14 +394,16 @@ document.addEventListener('DOMContentLoaded', () => {
             comment = "כל הכבוד גם אתם למדתם לשמור על מפתח בממד!";
         } else if (type === 'puzzle') {
             msg += `פתרתם את הפאזל ב-${puzzleMoves} תנועות ובזמן של ${finalTimeStr}!`;
-            comment = "איזו חדות! פאזל כזה אפילו ריינשרייבר לא פותר...";
+            comment = "כל הכבוד דייר/ת למופת, אין ספק שאתה משקיע בבניין! רוצה משחק חדש או אחר?";
         }
 
         winMessage.textContent = msg;
         funnyCommentDisplay.textContent = comment;
         winModal.classList.add('show');
 
-        saveScore(currentPlayer.name, currentPlayer.apt, finalTimeStr, seconds, type);
+        // Save score and update leaderboard with moves count included in the time string
+        const scoreReport = type === 'puzzle' ? `${finalTimeStr} (${puzzleMoves} תנועות)` : finalTimeStr;
+        saveScore(currentPlayer.name, currentPlayer.apt, scoreReport, seconds, type);
     }
 
     // --- Leaderboard API ---
