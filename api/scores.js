@@ -1,4 +1,9 @@
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
+
+// אתחול הקשר ל-Redis (שימוש במשתנה סביבה בורסל)
+// אם אין משתנה סביבה, נשתמש בכתובת שסיפקת כברירת מחדל (אבל עדיף להגדיר בורסל)
+const redisUrl = process.env.REDIS_URL || 'redis://default:VXS9hZEaViO02XgQ4AuEMffkQkJKfoXU@redis-16811.c265.us-east-1-2.ec2.cloud.redislabs.com:16811';
+const redis = new Redis(redisUrl);
 
 export default async function handler(request, response) {
     if (request.method === 'GET') {
@@ -6,32 +11,31 @@ export default async function handler(request, response) {
             const { gameType = 'memory' } = request.query;
             const kvKey = `oman_scores_${gameType}`;
 
-            // Fetch top 100 scores from Redis (sorted set)
-            const scores = await kv.zrange(kvKey, 0, 99, { withScores: true });
+            // שליפת 100 השיאים הטובים ביותר (זמן נמוך יותר = מקום גבוה יותר)
+            const scores = await redis.zrange(kvKey, 0, 99, 'WITHSCORES');
 
             const formattedScores = [];
             for (let i = 0; i < scores.length; i += 2) {
                 try {
-                    const data = typeof scores[i] === 'string' ? JSON.parse(scores[i]) : scores[i];
+                    const data = JSON.parse(scores[i]);
                     formattedScores.push({
                         name: data.name,
                         apt: data.apt,
                         timeStr: data.timeStr,
-                        timeSeconds: scores[i + 1]
+                        timeSeconds: parseFloat(scores[i + 1])
                     });
                 } catch (e) { continue; }
             }
 
             return response.status(200).json(formattedScores);
         } catch (error) {
-            console.error('KV GET Error:', error);
-            return response.status(500).json({ error: "Storage error. Check Vercel KV connection.", detail: error.message });
+            console.error('Redis GET Error:', error);
+            return response.status(500).json({ error: "Failed to fetch scores", detail: error.message });
         }
     }
 
     if (request.method === 'POST') {
         try {
-            // Manual body parsing for Node.js serverless functions if needed
             let body = request.body;
             if (typeof body === 'string') {
                 try { body = JSON.parse(body); } catch (e) { }
@@ -40,7 +44,7 @@ export default async function handler(request, response) {
             const { name, apt, timeStr, timeSeconds, game = 'memory' } = body;
 
             if (!name || !apt) {
-                return response.status(400).json({ error: "Missing player name or apartment." });
+                return response.status(400).json({ error: "Missing player details" });
             }
 
             const targetKey = `oman_scores_${game}`;
@@ -51,13 +55,13 @@ export default async function handler(request, response) {
                 uid: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
             });
 
-            // Add to Redis ZSET
-            await kv.zadd(targetKey, { score: timeSeconds, member: scoreData });
+            // הוספה ל-Sorted Set (ZADD)
+            await redis.zadd(targetKey, timeSeconds, scoreData);
 
             return response.status(200).json({ message: 'Score saved!' });
         } catch (error) {
-            console.error('KV POST Error:', error);
-            return response.status(500).json({ error: "Save error. Check Vercel KV connection.", detail: error.message });
+            console.error('Redis POST Error:', error);
+            return response.status(500).json({ error: "Failed to save score", detail: error.message });
         }
     }
 
