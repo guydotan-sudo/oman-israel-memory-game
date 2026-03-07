@@ -390,6 +390,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (sp.type === 'snake') {
                     tile.classList.add('special-snake');
                     tile.innerHTML = `<span>${tileNum}</span><div class="tile-icon">🐍</div>`;
+                } else if (sp.type === 'wait') {
+                    tile.innerHTML = `<span>${tileNum}</span><div class="tile-icon">⏳</div>`;
+                } else if (sp.type === 'fwd') {
+                    tile.innerHTML = `<span>${tileNum}</span><div class="tile-icon">🚀</div>`;
+                } else if (sp.type === 'back') {
+                    tile.innerHTML = `<span>${tileNum}</span><div class="tile-icon">⚠️</div>`;
                 } else {
                     tile.innerHTML = `<span>${tileNum}</span>`;
                 }
