@@ -243,14 +243,15 @@ header h1 {
     display: grid;
     grid-template-columns: repeat(10, 1fr);
     grid-template-rows: repeat(10, 1fr);
-    max-width: 550px;
+    max-width: 650px;
     width: 100%;
     aspect-ratio: 1/1;
     background: #fff;
-    border: 10px solid var(--secondary-color);
+    border: 8px solid var(--secondary-color);
     border-radius: 12px;
     position: relative;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
 }
 
 .snakes-tile {
@@ -282,7 +283,19 @@ header h1 {
     background-color: #fff9c4 !important;
     border: 3px solid var(--accent-color);
     font-weight: 900;
-    color: #333;
+}
+
+.snakes-tile.has-image {
+    background-size: cover;
+    background-position: center;
+    color: white !important;
+    text-shadow: 1px 1px 4px rgba(0, 0, 0, 1);
+    font-size: 1.2rem;
+    font-weight: 900;
+}
+
+.snakes-tile.has-image .tile-icon {
+    display: none;
 }
 
 .player-piece {

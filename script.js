@@ -327,15 +327,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Snakes and Ladders Logic ---
     let snakesPlayerPos = 0; // 0-99
     let snakesMoves = 0;
-    const ladersSnakes = {
-        // Ladders (Jump Up)
-        12: 35, // Blood Donation example
-        45: 78,
-        60: 88,
-        // Snakes (Fall Down)
-        98: 10, // Committee Dues example
-        75: 35,
-        25: 5
+    const specialTiles = {
+        // Ladders
+        11: { type: 'ladder', target: 34, msg: "איזו נתינה! תרמת דם וקפצת למעלה!", img: 'assets/snakes_blood.jpg' },
+        45: { type: 'ladder', target: 78, msg: "עזרת לשכן! קפוץ קדימה", img: null },
+        // Snakes
+        97: { type: 'snake', target: 10, msg: "אופס! אל תשכח לשלם לוועד הבית... יורדים לתחתית.", img: 'assets/snakes_committee.jpg' },
+        75: { type: 'snake', target: 35, msg: "עשית רעש בלילה! רד חזרה.", img: null },
+        // Custom
+        32: { type: 'wait', msg: "מישהו פה עשה גבות וטיפול פנים? תמתין תור אחד! 💆‍♀️", img: 'assets/snakes_eyebrows.jpg' },
+        64: { type: 'back', amount: 5, msg: "גול עצמי! חזרת 5 צעדים אחורה ⚽", img: 'assets/snakes_owngoal.jpg' }
     };
 
     function initSnakesGame() {
@@ -359,19 +360,26 @@ document.addEventListener('DOMContentLoaded', () => {
             tile.id = `tile-${i}`;
             tile.textContent = tileNum;
 
-            if (ladersSnakes[i]) {
-                if (ladersSnakes[i] > i) {
+            if (specialTiles[i]) {
+                const sp = specialTiles[i];
+                if (sp.type === 'ladder') {
                     tile.classList.add('special-ladder');
                     tile.innerHTML = `<span>${tileNum}</span><div class="tile-icon">🪜</div>`;
-                } else {
+                } else if (sp.type === 'snake') {
                     tile.classList.add('special-snake');
                     tile.innerHTML = `<span>${tileNum}</span><div class="tile-icon">🐍</div>`;
+                } else {
+                    tile.innerHTML = `<span>${tileNum}</span>`;
+                }
+                if (sp.img) {
+                    tile.classList.add('has-image');
+                    tile.style.backgroundImage = `url('${sp.img}')`;
                 }
             }
             if (i === 99) {
-                tile.classList.add('finish-tile');
-                tile.style.backgroundImage = "url('assets/building.jpg')";
-                tile.innerHTML = `<span>100</span><div class="tile-icon">🏠</div>`;
+                tile.classList.add('finish-tile', 'has-image');
+                tile.style.backgroundImage = "url('assets/snakes_end.jpg')";
+                tile.innerHTML = `<span>100</span>`;
             }
             snakesBoard.appendChild(tile);
         }
@@ -424,15 +432,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Check for special tiles
-        if (ladersSnakes[snakesPlayerPos]) {
-            const dest = ladersSnakes[snakesPlayerPos];
-            const isLadder = dest > snakesPlayerPos;
+        if (specialTiles[snakesPlayerPos]) {
+            const sp = specialTiles[snakesPlayerPos];
 
             setTimeout(() => {
-                alert(isLadder ? "איזו נתינה! תרמת דם וקפצת למעלה!" : "אופס! חוב לוועד הבית... יורדים למטה.");
-                snakesPlayerPos = dest;
-                updatePlayerPos();
-                rollDiceBtn.disabled = false;
+                alert(sp.msg);
+
+                if (sp.type === 'ladder' || sp.type === 'snake') {
+                    snakesPlayerPos = sp.target;
+                    updatePlayerPos();
+                    rollDiceBtn.disabled = false;
+                } else if (sp.type === 'back') {
+                    snakesPlayerPos = Math.max(0, snakesPlayerPos - sp.amount);
+                    updatePlayerPos();
+                    rollDiceBtn.disabled = false;
+                } else if (sp.type === 'wait') {
+                    // Wait a turn visually by simulating a skipped roll later or just keeping disabled until they acknowledge
+                    // For simplicity, we just show the alert and they need to roll again, but we could add a "skip next" flag
+                    alert("תורך הבא מבוטל!");
+                    setTimeout(() => { rollDiceBtn.disabled = false; }, 2000);
+                }
             }, 600);
         } else if (snakesPlayerPos === 99) {
             endCurrentGame('snakes');
