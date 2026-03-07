@@ -30,6 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const keyCanvas = document.getElementById('key-game-canvas');
     const ctx = keyCanvas.getContext('2d');
 
+    // Key Game Mobile Controls
+    const upBtn = document.getElementById('up-btn');
+    const downBtn = document.getElementById('down-btn');
+    const leftBtn = document.getElementById('left-btn');
+    const rightBtn = document.getElementById('right-btn');
+
     // Puzzle Game Elements
     const puzzleGrid = document.getElementById('puzzle-grid');
     const puzzleTimerDisplay = document.getElementById('puzzle-timer');
@@ -592,5 +598,25 @@ document.addEventListener('DOMContentLoaded', () => {
     puzzleHintBtn.addEventListener('mouseleave', hideHint);
     puzzleHintBtn.addEventListener('touchend', hideHint, { passive: false });
     puzzleHintBtn.addEventListener('touchcancel', hideHint, { passive: false });
+
+    // Key Game Mobile Controls Event Listeners
+    const bindKeyBtn = (btn, keyMap) => {
+        if (!btn) return;
+        const press = (e) => { e.preventDefault(); keysPressed[keyMap] = true; };
+        const release = (e) => { e.preventDefault(); keysPressed[keyMap] = false; };
+
+        btn.addEventListener('mousedown', press);
+        btn.addEventListener('touchstart', press, { passive: false });
+
+        btn.addEventListener('mouseup', release);
+        btn.addEventListener('mouseleave', release);
+        btn.addEventListener('touchend', release, { passive: false });
+        btn.addEventListener('touchcancel', release, { passive: false });
+    };
+
+    bindKeyBtn(upBtn, 'ArrowUp');
+    bindKeyBtn(downBtn, 'ArrowDown');
+    bindKeyBtn(leftBtn, 'ArrowLeft');
+    bindKeyBtn(rightBtn, 'ArrowRight');
 
 });
