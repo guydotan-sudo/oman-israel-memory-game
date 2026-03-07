@@ -204,7 +204,18 @@ header h1 {
 }
 
 .table-container {
-    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.table-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
 }
 
 table {
@@ -341,8 +352,8 @@ tr:nth-child(3) td:first-child::before {
     align-items: center;
     margin: 20px auto;
     position: relative;
-    max-width: 400px;
-    width: 90%;
+    max-width: 500px;
+    width: 95%;
 }
 
 .puzzle-grid {
