@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Elements ---
     const memoryGameView = document.getElementById('memory-game-view');
     const keyGameView = document.getElementById('key-game-view');
+    const puzzleGameView = document.getElementById('puzzle-game-view');
     const startModal = document.getElementById('start-modal');
     const winModal = document.getElementById('win-modal');
     const winMessage = document.getElementById('win-message');
@@ -27,6 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const keyRestartBtn = document.getElementById('key-restart-btn');
     const keyCanvas = document.getElementById('key-game-canvas');
     const ctx = keyCanvas.getContext('2d');
+
+    // Puzzle Game Elements
+    const puzzleGrid = document.getElementById('puzzle-grid');
+    const puzzleTimerDisplay = document.getElementById('puzzle-timer');
+    const puzzleMovesDisplay = document.getElementById('puzzle-moves');
+    const puzzleRestartBtn = document.getElementById('puzzle-restart-btn');
+    const puzzleHintBtn = document.getElementById('puzzle-hint-btn');
+    const puzzlePreview = document.getElementById('puzzle-preview');
 
     // Global State
     let currentPlayer = { name: '', apt: '' };
@@ -60,8 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateTimerDisplay() {
         const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
         const ss = String(seconds % 60).padStart(2, '0');
-        timerDisplay.textContent = `${mm}:${ss}`;
-        keyTimerDisplay.textContent = `${mm}:${ss}`;
+        const str = `${mm}:${ss}`;
+        if (timerDisplay) timerDisplay.textContent = str;
+        if (keyTimerDisplay) keyTimerDisplay.textContent = str;
+        if (puzzleTimerDisplay) puzzleTimerDisplay.textContent = str;
     }
 
     // --- Memory Game Logic ---
@@ -115,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.appendChild(back);
         card.addEventListener('click', () => {
             if (!gameActive || flippedCards.length >= 2 || card.classList.contains('flipped')) return;
-            if (seconds === 0) startTimer(timerDisplay);
+            if (!timerRunning) startTimer(timerDisplay);
             card.classList.add('flipped');
             flippedCards.push(card);
             if (flippedCards.length === 2) {
@@ -147,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     }
 
-    // --- "Find the Key" Game Logic (Pac-Man Style) ---
+    // --- "Find the Key" Game Logic ---
     let keyPlayer = { x: 0, y: 0, radius: 15, speed: 4 };
     let keys = [];
     let missiles = [];
@@ -166,7 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
         keyCanvas.width = 400;
         keyCanvas.height = 400;
 
-        // Initial setup
         keyPlayer.x = 200;
         keyPlayer.y = 200;
         keys = [];
@@ -201,25 +211,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateKeyGame() {
         if (!gameActive) return;
 
-        // Start timer on first movement or interaction
         if (!timerRunning && (keysPressed['ArrowUp'] || keysPressed['ArrowDown'] || keysPressed['ArrowLeft'] || keysPressed['ArrowRight'])) {
             startTimer(keyTimerDisplay);
         }
 
-        // Move Player
         if (keysPressed['ArrowUp'] && keyPlayer.y > keyPlayer.radius) keyPlayer.y -= keyPlayer.speed;
         if (keysPressed['ArrowDown'] && keyPlayer.y < keyCanvas.height - keyPlayer.radius) keyPlayer.y += keyPlayer.speed;
         if (keysPressed['ArrowLeft'] && keyPlayer.x > keyPlayer.radius) keyPlayer.x -= keyPlayer.speed;
         if (keysPressed['ArrowRight'] && keyPlayer.x < keyCanvas.width - keyPlayer.radius) keyPlayer.x += keyPlayer.speed;
 
-        // Move Missiles
         missiles.forEach(m => {
             m.x += m.vx;
             m.y += m.vy;
             if (m.x < 0 || m.x > keyCanvas.width) m.vx *= -1;
             if (m.y < 0 || m.y > keyCanvas.height) m.vy *= -1;
 
-            // Collision with Player
             const dx = m.x - keyPlayer.x;
             const dy = m.y - keyPlayer.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -232,7 +238,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Check Key Collection
         for (let i = keys.length - 1; i >= 0; i--) {
             const k = keys[i];
             const dx = k.x - keyPlayer.x;
@@ -244,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 keyCounterDisplay.textContent = `${keysCollected}/${TOTAL_KEYS}`;
                 if (keysCollected === TOTAL_KEYS) {
                     endCurrentGame('key');
-                    return; // Stop current frame
+                    return;
                 }
             }
         }
@@ -256,33 +261,113 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawKeyGame() {
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, keyCanvas.width, keyCanvas.height);
-
-        // Draw Stars/Background effect
         ctx.fillStyle = '#222';
         for (let i = 0; i < 10; i++) ctx.fillRect(i * 40, (i * 30) % 400, 2, 2);
-
-        // Draw Player (Small House/Square)
         ctx.font = '30px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('🏃', keyPlayer.x, keyPlayer.y);
-
-        // Draw Keys
         keys.forEach(k => {
             ctx.font = '24px Arial';
             ctx.fillText('🔑', k.x, k.y);
         });
-
-        // Draw Missiles (Tילים חמודים)
         missiles.forEach(m => {
             ctx.font = '28px Arial';
             ctx.fillText('🚀', m.x, m.y);
-
-            // Subtle glow for missiles
             ctx.shadowBlur = 10;
             ctx.shadowColor = "red";
         });
-        ctx.shadowBlur = 0; // reset
+        ctx.shadowBlur = 0;
+    }
+
+    // --- Sliding Puzzle Logic ---
+    let puzzleTiles = [];
+    let puzzleMoves = 0;
+    let puzzleImage = '';
+    const PUZZLE_SIZE = 3;
+
+    function initPuzzleGame() {
+        gameActive = true;
+        timerRunning = false;
+        puzzleMoves = 0;
+        puzzleMovesDisplay.textContent = '0';
+        resetTimer();
+
+        // Pick random resident image
+        puzzleImage = residentImages[Math.floor(Math.random() * residentImages.length)];
+        puzzlePreview.style.backgroundImage = `url('${puzzleImage}')`;
+
+        // Initialize tiles in solved state
+        puzzleTiles = Array.from({ length: PUZZLE_SIZE * PUZZLE_SIZE }, (_, i) => i);
+
+        // Shuffle by making random valid moves from solved state
+        shufflePuzzleSolvable();
+        renderPuzzle();
+        updateLeaderboard('puzzle');
+    }
+
+    function shufflePuzzleSolvable() {
+        // Start from solved state
+        let emptyPos = PUZZLE_SIZE * PUZZLE_SIZE - 1;
+        for (let i = 0; i < 200; i++) {
+            const neighbors = getNeighbors(emptyPos);
+            const move = neighbors[Math.floor(Math.random() * neighbors.length)];
+            [puzzleTiles[emptyPos], puzzleTiles[move]] = [puzzleTiles[move], puzzleTiles[emptyPos]];
+            emptyPos = move;
+        }
+    }
+
+    function getNeighbors(pos) {
+        const neighbors = [];
+        const r = Math.floor(pos / PUZZLE_SIZE);
+        const c = pos % PUZZLE_SIZE;
+        if (r > 0) neighbors.push(pos - PUZZLE_SIZE);
+        if (r < PUZZLE_SIZE - 1) neighbors.push(pos + PUZZLE_SIZE);
+        if (c > 0) neighbors.push(pos - 1);
+        if (c < PUZZLE_SIZE - 1) neighbors.push(pos + 1);
+        return neighbors;
+    }
+
+    function renderPuzzle() {
+        puzzleGrid.innerHTML = '';
+        puzzleTiles.forEach((tileValue, index) => {
+            const tile = document.createElement('div');
+            tile.classList.add('puzzle-tile');
+
+            if (tileValue === PUZZLE_SIZE * PUZZLE_SIZE - 1) {
+                tile.classList.add('empty');
+            } else {
+                tile.style.backgroundImage = `url('${puzzleImage}')`;
+                const r = Math.floor(tileValue / PUZZLE_SIZE);
+                const c = tileValue % PUZZLE_SIZE;
+                // Calculate background position based on 300% size (3x3)
+                tile.style.backgroundPosition = `${(c / (PUZZLE_SIZE - 1)) * 100}% ${(r / (PUZZLE_SIZE - 1)) * 100}%`;
+                tile.addEventListener('click', () => movePuzzleTile(index));
+            }
+            puzzleGrid.appendChild(tile);
+        });
+    }
+
+    function movePuzzleTile(index) {
+        if (!gameActive) return;
+        const emptyPos = puzzleTiles.indexOf(PUZZLE_SIZE * PUZZLE_SIZE - 1);
+        const neighbors = getNeighbors(index);
+
+        if (neighbors.includes(emptyPos)) {
+            if (!timerRunning) startTimer(puzzleTimerDisplay);
+            [puzzleTiles[index], puzzleTiles[emptyPos]] = [puzzleTiles[emptyPos], puzzleTiles[index]];
+            puzzleMoves++;
+            puzzleMovesDisplay.textContent = puzzleMoves;
+            renderPuzzle();
+            checkPuzzleWin();
+        }
+    }
+
+    function checkPuzzleWin() {
+        const isWin = puzzleTiles.every((val, i) => val === i);
+        if (isWin) {
+            endCurrentGame('puzzle');
+        }
     }
 
     // --- End Game Logic ---
@@ -292,7 +377,11 @@ document.addEventListener('DOMContentLoaded', () => {
         timerRunning = false;
         clearInterval(timerInterval);
 
-        const finalTimeStr = (type === 'memory' ? timerDisplay : keyTimerDisplay).textContent;
+        let display = timerDisplay;
+        if (type === 'key') display = keyTimerDisplay;
+        if (type === 'puzzle') display = puzzleTimerDisplay;
+
+        const finalTimeStr = display.textContent;
 
         let msg = `כל הכבוד ${currentPlayer.name} מדירה ${currentPlayer.apt}! `;
         let comment = "";
@@ -300,17 +389,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (type === 'memory') {
             msg += `סיימתם את משחק הזיכרון ב-${moves} תנועות ובזמן של ${finalTimeStr}`;
             comment = "מי וועד הבית!? צריך כאן משחק חוזר דחוף!";
-        } else {
+        } else if (type === 'key') {
             msg += `אספתם את כל המפתחות בזמן של ${finalTimeStr}!`;
             comment = "כל הכבוד גם אתם למדתם לשמור על מפתח בממד!";
+        } else if (type === 'puzzle') {
+            msg += `פתרתם את הפאזל ב-${puzzleMoves} תנועות ובזמן של ${finalTimeStr}!`;
+            comment = "איזו חדות! פאזל כזה אפילו ריינשרייבר לא פותר...";
         }
 
         winMessage.textContent = msg;
         funnyCommentDisplay.textContent = comment;
-
         winModal.classList.add('show');
 
-        // Save score and update leaderboard
         saveScore(currentPlayer.name, currentPlayer.apt, finalTimeStr, seconds, type);
     }
 
@@ -329,8 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function updateLeaderboard(gameType) {
         try {
-            // Update title to show which game we are looking at
-            const title = gameType === 'memory' ? 'משחק הזיכרון' : 'מצא את המפתח';
+            const title = gameType === 'memory' ? 'משחק הזיכרון' : (gameType === 'key' ? 'מצא את המפתח' : 'פאזל הזזה');
             leaderboardTitle.textContent = `טבלת שיאים - ${title}`;
 
             const res = await fetch(`/api/scores?gameType=${gameType}`);
@@ -347,16 +436,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             scores.forEach((s, i) => {
                 const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${i + 1}</td>
-                    <td>${s.name} (דירה ${s.apt})</td>
-                    <td>${s.timeStr}</td>
-                `;
+                row.innerHTML = `<td>${i + 1}</td><td>${s.name} (דירה ${s.apt})</td><td>${s.timeStr}</td>`;
                 leaderboardBody.appendChild(row);
             });
-        } catch (e) {
-            console.error('Leaderboard error:', e);
-        }
+        } catch (e) { console.error('Leaderboard error:', e); }
     }
 
     // --- Event Listeners ---
@@ -377,29 +460,42 @@ document.addEventListener('DOMContentLoaded', () => {
         currentPlayer = { name, apt };
         startModal.classList.remove('show');
 
+        memoryGameView.style.display = 'none';
+        keyGameView.style.display = 'none';
+        puzzleGameView.style.display = 'none';
+
         if (selectedGame === 'memory') {
             memoryGameView.style.display = 'block';
-            keyGameView.style.display = 'none';
             gameSubtitle.textContent = 'מצאו את הזוגות כמה שיותר מהר!';
             initMemoryGame();
-        } else {
-            memoryGameView.style.display = 'none';
+        } else if (selectedGame === 'key') {
             keyGameView.style.display = 'block';
             gameSubtitle.textContent = 'אספו את כל המפתחות ושימרו עליהם בממד!';
             initKeyGame();
+        } else if (selectedGame === 'puzzle') {
+            puzzleGameView.style.display = 'block';
+            gameSubtitle.textContent = 'החליקו את החלקים וסדרו את התמונה!';
+            initPuzzleGame();
         }
     });
 
     restartBtn.addEventListener('click', () => { gameActive = false; startModal.classList.add('show'); });
     keyRestartBtn.addEventListener('click', () => { gameActive = false; startModal.classList.add('show'); });
+    puzzleRestartBtn.addEventListener('click', () => { gameActive = false; startModal.classList.add('show'); });
+
+    puzzleHintBtn.addEventListener('mousedown', () => puzzlePreview.classList.add('show'));
+    puzzleHintBtn.addEventListener('mouseup', () => puzzlePreview.classList.remove('show'));
+    puzzleHintBtn.addEventListener('touchstart', (e) => { e.preventDefault(); puzzlePreview.classList.add('show'); });
+    puzzleHintBtn.addEventListener('touchend', (e) => { e.preventDefault(); puzzlePreview.classList.remove('show'); });
+
     document.getElementById('close-modal-btn').addEventListener('click', () => winModal.classList.remove('show'));
 
     window.addEventListener('keydown', e => keysPressed[e.key] = true);
     window.addEventListener('keyup', e => delete keysPressed[e.key]);
 
-    // Mobile buttons
     const bindBtn = (id, key) => {
         const el = document.getElementById(id);
+        if (!el) return;
         el.addEventListener('touchstart', (e) => { e.preventDefault(); keysPressed[key] = true; });
         el.addEventListener('touchend', (e) => { e.preventDefault(); delete keysPressed[key]; });
         el.addEventListener('mousedown', () => { keysPressed[key] = true; });

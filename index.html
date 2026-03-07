@@ -95,14 +95,18 @@
                     <input type="number" id="initial-apt" placeholder="למשל: 12" min="1" max="100">
                 </div>
 
-                <div class="game-selection">
+                <div class="game-selection three-games">
                     <button class="game-choice-btn active" data-game="memory">
                         <span class="btn-icon">🧩</span>
-                        <span class="btn-text">משחק הזיכרון</span>
+                        <span class="btn-text">זיכרון</span>
                     </button>
                     <button class="game-choice-btn" data-game="key">
                         <span class="btn-icon">🔑</span>
-                        <span class="btn-text">מצא את המפתח</span>
+                        <span class="btn-text">מפתחות</span>
+                    </button>
+                    <button class="game-choice-btn" data-game="puzzle">
+                        <span class="btn-icon">🖼️</span>
+                        <span class="btn-text">פאזל</span>
                     </button>
                 </div>
 
@@ -110,6 +114,25 @@
                     <button id="start-game-btn" class="primary-btn">בואו נתחיל!</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="puzzle-game-view" style="display: none;">
+        <div class="game-controls">
+            <div class="stat-box">
+                <span class="stat-label">זמן:</span>
+                <span id="puzzle-timer" class="stat-value">00:00</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">תנועות:</span>
+                <span id="puzzle-moves" class="stat-value">0</span>
+            </div>
+            <button id="puzzle-hint-btn" class="secondary-btn">רמז 👁️</button>
+            <button id="puzzle-restart-btn" class="secondary-btn">החלף משחק</button>
+        </div>
+        <div class="puzzle-container">
+            <div id="puzzle-grid" class="puzzle-grid"></div>
+            <div id="puzzle-preview" class="puzzle-preview"></div>
         </div>
     </div>
 
