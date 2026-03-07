@@ -580,4 +580,17 @@ document.addEventListener('DOMContentLoaded', () => {
     rollDiceBtn.addEventListener('click', rollDice);
     document.getElementById('close-modal-btn').addEventListener('click', () => winModal.classList.remove('show'));
     window.addEventListener('keydown', e => keysPressed[e.key] = true); window.addEventListener('keyup', e => delete keysPressed[e.key]);
+
+    // Puzzle Hint Event Listeners (Mouse + Touch)
+    const showHint = (e) => { e.preventDefault(); puzzlePreview.classList.add('show'); };
+    const hideHint = (e) => { e.preventDefault(); puzzlePreview.classList.remove('show'); };
+
+    puzzleHintBtn.addEventListener('mousedown', showHint);
+    puzzleHintBtn.addEventListener('touchstart', showHint, { passive: false });
+
+    puzzleHintBtn.addEventListener('mouseup', hideHint);
+    puzzleHintBtn.addEventListener('mouseleave', hideHint);
+    puzzleHintBtn.addEventListener('touchend', hideHint, { passive: false });
+    puzzleHintBtn.addEventListener('touchcancel', hideHint, { passive: false });
+
 });
