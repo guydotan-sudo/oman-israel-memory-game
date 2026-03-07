@@ -327,24 +327,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Snakes and Ladders Logic ---
     let snakesPlayerPos = 0; // 0-99
     let snakesMoves = 0;
-    const specialTiles = {
-        // Ladders
-        11: { type: 'ladder', target: 34, msg: "איזו נתינה! תרמת דם וקפצת למעלה!", img: 'assets/snakes_blood.jpg' },
-        45: { type: 'ladder', target: 78, msg: "עזרת לשכן! קפוץ קדימה", img: null },
-        // Snakes
-        97: { type: 'snake', target: 10, msg: "אופס! אל תשכח לשלם לוועד הבית... יורדים לתחתית.", img: 'assets/snakes_committee.jpg' },
-        75: { type: 'snake', target: 35, msg: "עשית רעש בלילה! רד חזרה.", img: null },
-        // Custom
-        32: { type: 'wait', msg: "מישהו פה עשה גבות וטיפול פנים? תמתין תור אחד! 💆‍♀️", img: 'assets/snakes_eyebrows.jpg' },
-        64: { type: 'back', amount: 5, msg: "גול עצמי! חזרת 5 צעדים אחורה ⚽", img: 'assets/snakes_owngoal.jpg' }
-    };
+    // The pool of special tiles to be randomly assigned
+    const specialTilePool = [
+        { type: 'ladder', amount: 15, msg: "איזו נתינה! תרמת דם וקפצת למעלה!", img: 'assets/snakes_blood.jpg' },
+        { type: 'ladder', amount: 12, msg: "עזרת לשכן! קפוץ קדימה", img: null },
+        { type: 'snake', amount: 20, msg: "אופס! אל תשכח לשלם לוועד הבית... יורדים לתחתית.", img: 'assets/snakes_committee.jpg' },
+        { type: 'snake', amount: 10, msg: "עשית רעש בלילה! רד חזרה.", img: null },
+        { type: 'wait', msg: "מישהו פה עשה גבות וטיפול פנים? תמתין תור אחד! 💆‍♀️", img: 'assets/snakes_eyebrows.jpg' },
+        { type: 'back', amount: 5, msg: "גול עצמי! חזרת 5 צעדים אחורה ⚽", img: 'assets/snakes_owngoal.jpg' },
+        { type: 'fwd', amount: 3, msg: "עלית עם לאה במעלית ושמעת בדיחה! קופץ 3 משבצות 😂", img: 'assets/snakes_leah.jpg' },
+        { type: 'back', amount: 5, msg: "אתם עוברים דירה ועוזבים אותנו? 5 צעדים אחורה! 📦", img: 'assets/snakes_moving.jpg' },
+        { type: 'fwd', amount: 2, msg: "פנית למתווך והוא מצא לך דירה! מתקדם ב-2 קפיצות! 🏢", img: 'assets/snakes_agent.jpg' }
+    ];
+
+    let currentSpecialTiles = {}; // Will hold the randomized map
 
     function initSnakesGame() {
         gameActive = true; timerRunning = false; snakesMoves = 0; snakesPlayerPos = 0;
         snakesMovesDisplay.textContent = '0'; diceResult.textContent = '?';
         resetTimer();
+        generateRandomSpecialTiles();
         createSnakesBoard();
         updateLeaderboard('snakes');
+    }
+
+    function generateRandomSpecialTiles() {
+        currentSpecialTiles = {};
+        let availablePositions = Array.from({ length: 90 }, (_, i) => i + 5); // From tile 6 to 95 avoid edges
+        shuffle(availablePositions);
+
+        specialTilePool.forEach(special => {
+            const pos = availablePositions.pop();
+            // Assign calculated target for ladders/snakes so they don't break logic
+            let modifiedSpecial = { ...special };
+            if (special.type === 'ladder') {
+                modifiedSpecial.target = Math.min(98, pos + special.amount);
+            } else if (special.type === 'snake') {
+                modifiedSpecial.target = Math.max(1, pos - special.amount);
+            }
+            currentSpecialTiles[pos] = modifiedSpecial;
+        });
     }
 
     function createSnakesBoard() {
@@ -360,8 +382,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tile.id = `tile-${i}`;
             tile.textContent = tileNum;
 
-            if (specialTiles[i]) {
-                const sp = specialTiles[i];
+            if (currentSpecialTiles[i]) {
+                const sp = currentSpecialTiles[i];
                 if (sp.type === 'ladder') {
                     tile.classList.add('special-ladder');
                     tile.innerHTML = `<span>${tileNum}</span><div class="tile-icon">🪜</div>`;
@@ -432,8 +454,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Check for special tiles
-        if (specialTiles[snakesPlayerPos]) {
-            const sp = specialTiles[snakesPlayerPos];
+        if (currentSpecialTiles[snakesPlayerPos]) {
+            const sp = currentSpecialTiles[snakesPlayerPos];
+            const activeTileElement = document.getElementById(`tile-${snakesPlayerPos}`);
+
+            // Pop out effect on the image when landed on
+            if (sp.img && activeTileElement) {
+                activeTileElement.classList.add('zoomed-tile');
+                setTimeout(() => activeTileElement.classList.remove('zoomed-tile'), 3000);
+            }
 
             setTimeout(() => {
                 alert(sp.msg);
@@ -446,10 +475,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     snakesPlayerPos = Math.max(0, snakesPlayerPos - sp.amount);
                     updatePlayerPos();
                     rollDiceBtn.disabled = false;
+                } else if (sp.type === 'fwd') {
+                    snakesPlayerPos = Math.min(99, snakesPlayerPos + sp.amount);
+                    updatePlayerPos();
+                    rollDiceBtn.disabled = false;
                 } else if (sp.type === 'wait') {
                     // Wait a turn visually by simulating a skipped roll later or just keeping disabled until they acknowledge
-                    // For simplicity, we just show the alert and they need to roll again, but we could add a "skip next" flag
-                    alert("תורך הבא מבוטל!");
                     setTimeout(() => { rollDiceBtn.disabled = false; }, 2000);
                 }
             }, 600);
