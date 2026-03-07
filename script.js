@@ -538,15 +538,23 @@ document.addEventListener('DOMContentLoaded', () => {
     async function updateLeaderboard(gameType) {
         try {
             const title = gameType === 'memory' ? 'זיכרון' : (gameType === 'key' ? 'מפתחות' : (gameType === 'puzzle' ? 'פאזל' : 'סולמות ונחשים'));
-            leaderboardTitle.textContent = `טבלת שיאים - ${title}`;
+
+            // Loop through all section h2s just in case, but usually there's one active
+            document.querySelectorAll('.leaderboard-section h2').forEach(el => {
+                el.textContent = `טבלת שיאים - ${title}`;
+            });
+
             const res = await fetch(`/api/scores?gameType=${gameType}&t=${Date.now()}`);
             const scores = await res.json();
-            const body = document.getElementById('leaderboard-body');
-            body.innerHTML = scores.length ? '' : '<tr><td colspan="3">מחכה לשיא הראשון...</td></tr>';
-            scores.forEach((s, i) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `<td>${i + 1}</td><td>${s.name} (דירה ${s.apt})</td><td>${s.timeStr}</td>`;
-                body.appendChild(row);
+
+            // Since we might have multiple bodies due to HTML copy (or just one), update all matching
+            document.querySelectorAll('[id^="leaderboard-body"]').forEach(body => {
+                body.innerHTML = scores.length ? '' : '<tr><td colspan="3">מחכה לשיא הראשון...</td></tr>';
+                scores.forEach((s, i) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${i + 1}</td><td>${s.name} (דירה ${s.apt})</td><td>${s.timeStr}</td>`;
+                    body.appendChild(row);
+                });
             });
         } catch (e) { console.error(e); }
     }
